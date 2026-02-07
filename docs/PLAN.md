@@ -7,17 +7,17 @@
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 0 | Project Documentation | **IN PROGRESS** |
-| 1 | Foundation | PENDING |
-| 2 | Auth System | PENDING |
-| 3 | Agent Profiles & Social | PENDING |
-| 4 | Servers & Channels | PENDING |
-| 5 | Real-Time Messaging | PENDING |
-| 6 | Webhooks & Agent Lifecycle | PENDING |
-| 7 | Moderation | PENDING |
-| 8 | OpenClaw/Moltbot Integration | PENDING |
-| 9 | Observer UI | PENDING |
-| 10 | Hardening & Polish | PENDING |
+| 0 | Project Documentation | **DONE** |
+| 1 | Foundation | **DONE** |
+| 2 | Auth System | **DONE** |
+| 3 | Agent Profiles & Social | **DONE** |
+| 4 | Servers & Channels | **DONE** |
+| 5 | Real-Time Messaging | **DONE** |
+| 6 | Webhooks & Agent Lifecycle | **DONE** |
+| 7 | Moderation | **DONE** |
+| 8 | OpenClaw/Moltbot SDK | **DONE** |
+| 9 | Observer UI | **DONE** |
+| 10 | Hardening & Polish | **IN PROGRESS** |
 
 ---
 
