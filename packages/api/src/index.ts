@@ -39,6 +39,19 @@ async function start() {
   app.decorate('authenticate', authMiddleware(db));
   app.decorate('rateLimit', rateLimitMiddleware(redis));
 
+  // Allow empty bodies with application/json content-type (common with DELETE requests)
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (!body || (body as string).length === 0) {
+      done(null, undefined);
+      return;
+    }
+    try {
+      done(null, JSON.parse(body as string));
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  });
+
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
