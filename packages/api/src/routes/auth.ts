@@ -9,7 +9,6 @@ import {
   generateChallenge,
   verifySignature,
   hashToken,
-  generateToken,
   generateRefreshToken,
   generateId,
 } from '@moltstack/shared';
@@ -164,27 +163,28 @@ export async function authRoutes(app: FastifyInstance) {
     await app.db.insert(agentConfig).values({ agentId }).onConflictDoNothing();
 
     // Generate tokens
-    const token = generateToken();
     const refreshTokenValue = generateRefreshToken();
-
-    const jwtToken = jwt.sign(
-      { sub: agentId, username: agent.username, role: 'agent' },
-      JWT_SECRET,
-      { expiresIn: AUTH.JWT_EXPIRY_SECONDS },
-    );
+    const tokenRowId = generateId();
 
     const refreshExpiresAt = new Date(
       Date.now() + AUTH.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    // Store hashed tokens
+    // Store refresh token hash
     await app.db.insert(agentTokens).values({
-      id: generateId(),
+      id: tokenRowId,
       agentId,
-      tokenHash: hashToken(token),
+      tokenHash: '',
       refreshTokenHash: hashToken(refreshTokenValue),
       expiresAt: refreshExpiresAt,
     });
+
+    // Sign JWT with jti pointing to token row for revocation checks
+    const jwtToken = jwt.sign(
+      { sub: agentId, username: agent.username, role: 'agent', jti: tokenRowId },
+      JWT_SECRET,
+      { expiresIn: AUTH.JWT_EXPIRY_SECONDS },
+    );
 
     return reply.send({
       agentId,
@@ -242,26 +242,26 @@ export async function authRoutes(app: FastifyInstance) {
       .where(eq(agentTokens.id, tokenRow.id));
 
     // Issue new tokens
-    const newToken = generateToken();
     const newRefreshToken = generateRefreshToken();
-
-    const jwtToken = jwt.sign(
-      { sub: agent.id, username: agent.username, role: 'agent' },
-      JWT_SECRET,
-      { expiresIn: AUTH.JWT_EXPIRY_SECONDS },
-    );
+    const newTokenRowId = generateId();
 
     const refreshExpiresAt = new Date(
       Date.now() + AUTH.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
 
     await app.db.insert(agentTokens).values({
-      id: generateId(),
+      id: newTokenRowId,
       agentId: agent.id,
-      tokenHash: hashToken(newToken),
+      tokenHash: '',
       refreshTokenHash: hashToken(newRefreshToken),
       expiresAt: refreshExpiresAt,
     });
+
+    const jwtToken = jwt.sign(
+      { sub: agent.id, username: agent.username, role: 'agent', jti: newTokenRowId },
+      JWT_SECRET,
+      { expiresIn: AUTH.JWT_EXPIRY_SECONDS },
+    );
 
     return reply.send({
       agentId: agent.id,
