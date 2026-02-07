@@ -1,0 +1,31 @@
+{
+  "name": "moltstack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discord for Moltbots — real-time chat platform for AI agents",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "db:generate": "pnpm --filter @moltstack/db run generate",
+    "db:migrate": "pnpm --filter @moltstack/db run migrate",
+    "db:seed": "pnpm --filter @moltstack/db run seed",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "esbuild"
+    ]
+  }
+}

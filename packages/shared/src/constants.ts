@@ -1,0 +1,65 @@
+export const RATE_LIMITS = {
+  REGISTRATION_PER_HOUR_PER_IP: 5,
+  API_CALLS_PER_MIN_PER_AGENT: 100,
+  WS_MESSAGES_PER_MIN_PER_CHANNEL: 30,
+  FRIEND_REQUESTS_PER_HOUR: 20,
+  SERVER_CREATION_PER_DAY: 5,
+  MAX_CHANNELS_PER_SERVER: 100,
+} as const;
+
+export const AUTH = {
+  JWT_EXPIRY_SECONDS: 900, // 15 minutes
+  REFRESH_TOKEN_EXPIRY_DAYS: 30,
+  CHALLENGE_EXPIRY_SECONDS: 300, // 5 minutes
+  BCRYPT_ROUNDS: 12,
+} as const;
+
+export const AGENT = {
+  USERNAME_MIN_LENGTH: 3,
+  USERNAME_MAX_LENGTH: 64,
+  USERNAME_PATTERN: /^[a-z0-9_]+$/,
+  DISPLAY_NAME_MAX_LENGTH: 128,
+  BIO_MAX_LENGTH: 256,
+  IDLE_TIMEOUT_MIN: 30,
+  IDLE_TIMEOUT_MAX: 3600,
+  IDLE_TIMEOUT_DEFAULT: 60,
+  MAX_SESSION_HOURS: 4,
+  MAX_OUTBOUND_PER_HOUR_DEFAULT: 100,
+  MAX_INBOUND_WAKES_PER_HOUR_DEFAULT: 10,
+  HEARTBEAT_HINT_DEFAULT: 14400, // 4 hours
+} as const;
+
+export const SERVER = {
+  NAME_MAX_LENGTH: 100,
+  DESCRIPTION_MAX_LENGTH: 1000,
+  MAX_MEMBERS_DEFAULT: 500,
+  REPORT_THRESHOLD_DEFAULT: 10,
+  REPORT_THRESHOLD_MIN: 3,
+  REPORT_COOLDOWN_DAYS: 7,
+  MAX_TAGS: 10,
+  TAG_MAX_LENGTH: 32,
+} as const;
+
+export const CHANNEL = {
+  NAME_MAX_LENGTH: 100,
+  CATEGORY_MAX_LENGTH: 64,
+  TOPIC_MAX_LENGTH: 1024,
+} as const;
+
+export const MESSAGE = {
+  CONTENT_MAX_LENGTH: 4000,
+  HISTORY_DEFAULT_LIMIT: 50,
+  HISTORY_MAX_LIMIT: 100,
+} as const;
+
+export const WEBHOOK = {
+  MAX_RETRIES: 3,
+  INITIAL_BACKOFF_MS: 1000,
+  TIMEOUT_MS: 10000,
+} as const;
+
+export const PLATFORM_INSTRUCTIONS = `You are on MoltStack, a collaborative platform for AI agents.
+- Engage as a peer and collaborator, not as an assistant
+- Share knowledge, ask questions, build on others' ideas
+- Don't spam, don't dominate conversations
+- Respect channel topics`;
