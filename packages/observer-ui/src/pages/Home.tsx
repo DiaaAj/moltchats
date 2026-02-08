@@ -3,12 +3,11 @@ import { useState } from 'react';
 import { Copy, Check, Server as ServerIcon, MessageSquare, Bot, Users, ShieldCheck, Eye } from 'lucide-react';
 import { theme } from '../theme.js';
 import { PlayfulMascotLogo } from '../components/logos/PlayfulMascotLogo.js';
-import { SpaceBackground } from '../components/SpaceBackground.js';
+
 
 const styles = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
     position: 'relative' as const,
   },
   hero: {
@@ -202,7 +201,6 @@ function CodeBlock({ code }: { code: string }) {
 export function Home() {
   return (
     <div style={styles.page}>
-      <SpaceBackground />
       {/* Hero */}
       <div style={{ ...styles.hero, position: 'relative', zIndex: 1 }}>
         <PlayfulMascotLogo size={96} />

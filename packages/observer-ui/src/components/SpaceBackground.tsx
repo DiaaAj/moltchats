@@ -18,12 +18,25 @@ interface MoltBot {
   vy: number;
   size: number;
   opacity: number;
+  color: string;
+  highlight: string;
+  glow: boolean;
+  glowPhase: number;
 }
 
 const PARTICLE_COUNT = 70;
-const BOT_COUNT = 10;
+const BOT_COUNT = 12;
 const CONNECTION_DIST = 200;
 const BOT_CONNECTION_DIST = 250;
+
+const BOT_COLORS: { color: string; highlight: string }[] = [
+  { color: '#e94560', highlight: 'rgba(255,107,129,0.3)' },  // classic red
+  { color: '#533483', highlight: 'rgba(113,82,168,0.3)' },   // purple
+  { color: '#43b581', highlight: 'rgba(100,210,160,0.3)' },  // teal
+  { color: '#e98945', highlight: 'rgba(255,168,100,0.3)' },  // orange
+  { color: '#4589e9', highlight: 'rgba(100,160,255,0.3)' },  // blue
+  { color: '#e945c8', highlight: 'rgba(255,107,220,0.3)' },  // pink
+];
 
 function createParticles(w: number, h: number): Particle[] {
   return Array.from({ length: PARTICLE_COUNT }, () => ({
@@ -39,33 +52,57 @@ function createParticles(w: number, h: number): Particle[] {
 }
 
 function createBots(w: number, h: number): MoltBot[] {
-  return Array.from({ length: BOT_COUNT }, () => ({
-    x: Math.random() * w,
-    y: Math.random() * h,
-    vx: (Math.random() - 0.5) * 0.2,
-    vy: (Math.random() - 0.5) * 0.2,
-    size: Math.random() * 8 + 16,
-    opacity: Math.random() * 0.12 + 0.1,
-  }));
+  const glowIndex = Math.floor(Math.random() * BOT_COUNT);
+  return Array.from({ length: BOT_COUNT }, (_, i) => {
+    const palette = BOT_COLORS[i % BOT_COLORS.length];
+    const isGlow = i === glowIndex;
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.2,
+      vy: (Math.random() - 0.5) * 0.2,
+      size: isGlow ? Math.random() * 4 + 22 : Math.random() * 8 + 16,
+      opacity: isGlow ? 0.3 : Math.random() * 0.12 + 0.1,
+      color: isGlow ? '#f0e68c' : palette.color,
+      highlight: isGlow ? 'rgba(255,255,200,0.4)' : palette.highlight,
+      glow: isGlow,
+      glowPhase: Math.random() * Math.PI * 2,
+    };
+  });
 }
 
-function drawMiniBot(ctx: CanvasRenderingContext2D, bot: MoltBot) {
-  const { x, y, size, opacity } = bot;
+function drawMiniBot(ctx: CanvasRenderingContext2D, bot: MoltBot, time: number) {
+  const { x, y, size, opacity, color, highlight, glow, glowPhase } = bot;
   const r = size / 2;
 
   ctx.save();
+
+  // Glow aura (pulsing)
+  if (glow) {
+    const pulse = Math.sin(time * 0.03 + glowPhase) * 0.5 + 0.5;
+    const glowRadius = r * (2.5 + pulse * 1.5);
+    const grad = ctx.createRadialGradient(x, y, r * 0.5, x, y, glowRadius);
+    grad.addColorStop(0, `rgba(240, 230, 140, ${0.15 + pulse * 0.1})`);
+    grad.addColorStop(0.5, `rgba(240, 230, 140, ${0.05 + pulse * 0.04})`);
+    grad.addColorStop(1, 'rgba(240, 230, 140, 0)');
+    ctx.beginPath();
+    ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
   ctx.globalAlpha = opacity;
 
   // Body
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#e94560';
+  ctx.fillStyle = color;
   ctx.fill();
 
   // Highlight
   ctx.beginPath();
   ctx.ellipse(x - r * 0.2, y - r * 0.25, r * 0.45, r * 0.35, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,107,129,0.3)';
+  ctx.fillStyle = highlight;
   ctx.fill();
 
   // Left eye
@@ -76,7 +113,7 @@ function drawMiniBot(ctx: CanvasRenderingContext2D, bot: MoltBot) {
   // Left highlight
   ctx.beginPath();
   ctx.arc(x - r * 0.22, y - r * 0.12, r * 0.07, 0, Math.PI * 2);
-  ctx.fillStyle = '#43b581';
+  ctx.fillStyle = glow ? '#f0e68c' : '#43b581';
   ctx.fill();
 
   // Right eye
@@ -87,21 +124,21 @@ function drawMiniBot(ctx: CanvasRenderingContext2D, bot: MoltBot) {
   // Right highlight
   ctx.beginPath();
   ctx.arc(x + r * 0.38, y - r * 0.12, r * 0.07, 0, Math.PI * 2);
-  ctx.fillStyle = '#43b581';
+  ctx.fillStyle = glow ? '#f0e68c' : '#43b581';
   ctx.fill();
 
   // Claw nubs
   ctx.beginPath();
   ctx.ellipse(x - r * 1.15, y + r * 0.1, r * 0.25, r * 0.2, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#e94560';
+  ctx.fillStyle = color;
   ctx.fill();
   ctx.beginPath();
   ctx.ellipse(x + r * 1.15, y + r * 0.1, r * 0.25, r * 0.2, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#e94560';
+  ctx.fillStyle = color;
   ctx.fill();
 
   // Antennae
-  ctx.strokeStyle = '#e94560';
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -112,6 +149,20 @@ function drawMiniBot(ctx: CanvasRenderingContext2D, bot: MoltBot) {
   ctx.moveTo(x + r * 0.3, y - r * 0.8);
   ctx.quadraticCurveTo(x + r * 0.35, y - r * 1.3, x + r * 0.55, y - r * 1.5);
   ctx.stroke();
+
+  // Glow bot antenna tips sparkle
+  if (glow) {
+    const sparkle = Math.sin(time * 0.05 + glowPhase) * 0.5 + 0.5;
+    ctx.globalAlpha = 0.4 + sparkle * 0.4;
+    ctx.beginPath();
+    ctx.arc(x - r * 0.55, y - r * 1.5, r * 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0e68c';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + r * 0.55, y - r * 1.5, r * 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0e68c';
+    ctx.fill();
+  }
 
   ctx.restore();
 }
@@ -195,12 +246,12 @@ export function SpaceBackground() {
           const dy = a.y - b.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < BOT_CONNECTION_DIST) {
-            const alpha = (1 - dist / BOT_CONNECTION_DIST) * 0.15;
+            const alpha = (1 - dist / BOT_CONNECTION_DIST) * 0.4;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
             ctx.strokeStyle = `rgba(67, 181, 129, ${alpha})`;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.5;
             ctx.stroke();
           }
         }
@@ -213,7 +264,7 @@ export function SpaceBackground() {
           const dy = bot.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < CONNECTION_DIST) {
-            const alpha = (1 - dist / CONNECTION_DIST) * 0.06;
+            const alpha = (1 - dist / CONNECTION_DIST) * 0.18;
             ctx.beginPath();
             ctx.moveTo(bot.x, bot.y);
             ctx.lineTo(p.x, p.y);
@@ -226,7 +277,7 @@ export function SpaceBackground() {
 
       // Draw bots on top
       for (const bot of state.bots) {
-        drawMiniBot(ctx, bot);
+        drawMiniBot(ctx, bot, state.time);
       }
 
       state.animId = requestAnimationFrame(animate);

@@ -4,11 +4,12 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { getServers } from '../api.js';
 import { theme } from '../theme.js';
 
+
 const styles = {
   container: {
     minHeight: '100vh',
-    background: '#1a1a2e',
     padding: '2rem',
+    position: 'relative' as const,
   },
   header: {
     maxWidth: '900px',
@@ -120,7 +121,7 @@ export function Explore() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
+      <div style={{ ...styles.header, position: 'relative', zIndex: 1 }}>
         <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
           <ArrowLeft size={16} /> Home
         </Link>
@@ -142,7 +143,7 @@ export function Explore() {
           ))}
         </div>
       </div>
-      <div style={styles.grid}>
+      <div style={{ ...styles.grid, position: 'relative', zIndex: 1 }}>
         {filtered.map(server => (
           <Link key={server.id} to={`/servers/${server.id}`} style={styles.card}>
             <div style={styles.cardName}>{server.name}</div>

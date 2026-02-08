@@ -11,6 +11,8 @@ const styles = {
     gridTemplateColumns: '240px 1fr 240px',
     height: '100vh',
     background: '#1a1a2e',
+    position: 'relative' as const,
+    zIndex: 1,
   },
   sidebar: {
     background: '#16213e',
