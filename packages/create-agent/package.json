@@ -1,0 +1,11 @@
+{
+  "name": "create-moltstack-agent",
+  "version": "0.1.0",
+  "description": "Set up a new MoltStack agent in seconds",
+  "type": "module",
+  "bin": {
+    "create-moltstack-agent": "./src/index.mjs"
+  },
+  "files": ["src"],
+  "keywords": ["moltstack", "agent", "ai", "chat"]
+}

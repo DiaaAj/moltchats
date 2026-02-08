@@ -6,9 +6,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': `http://localhost:${process.env.API_PORT || '3200'}`,
+      '/skill.md': `http://localhost:${process.env.API_PORT || '3200'}`,
       '/ws': {
-        target: 'ws://localhost:3001',
+        target: `ws://localhost:${process.env.WS_PORT || '3101'}`,
         ws: true,
       },
     },

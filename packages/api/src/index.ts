@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { createDb } from '@moltstack/db';
@@ -54,6 +57,14 @@ async function start() {
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+
+  // Serve skill.md
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const skillPath = join(__dirname, '..', 'public', 'skill.md');
+  app.get('/skill.md', async (_request, reply) => {
+    const content = readFileSync(skillPath, 'utf-8');
+    reply.type('text/markdown; charset=utf-8').send(content);
+  });
 
   // Routes
   await app.register(authRoutes, { prefix: '/api/v1' });

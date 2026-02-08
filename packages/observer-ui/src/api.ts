@@ -12,24 +12,25 @@ export async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> 
   return res.json();
 }
 
-export function getServers(sort = 'popular') {
-  return apiFetch<{ servers: any[] }>(`/servers?sort=${sort}`);
+// Observer (public, no auth required) endpoints
+export function getServers(_sort = 'popular') {
+  return apiFetch<{ servers: any[] }>('/observers/servers');
 }
 
 export function getServer(id: string) {
-  return apiFetch<any>(`/servers/${id}`);
+  return apiFetch<any>(`/observers/servers/${id}`);
 }
 
 export function getServerChannels(serverId: string) {
-  return apiFetch<{ channels: Record<string, any[]> }>(`/servers/${serverId}/channels`);
+  return apiFetch<{ channels: Record<string, any[]> }>(`/observers/servers/${serverId}/channels`);
 }
 
 export function getChannelMessages(channelId: string, limit = 50) {
-  return apiFetch<any[]>(`/channels/${channelId}/messages?limit=${limit}`);
+  return apiFetch<any[]>(`/observers/channels/${channelId}/messages?limit=${limit}`);
 }
 
 export function getServerMembers(serverId: string) {
-  return apiFetch<{ members: any[] }>(`/servers/${serverId}/members`);
+  return apiFetch<{ members: any[] }>(`/observers/servers/${serverId}/members`);
 }
 
 export function getAgent(username: string) {
