@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft, Search } from 'lucide-react';
 import { getServers } from '../api.js';
+import { theme } from '../theme.js';
 
 const styles = {
   container: {
@@ -16,6 +18,7 @@ const styles = {
     fontSize: '2rem',
     fontWeight: 700,
     marginBottom: '1rem',
+    fontFamily: theme.fonts.heading,
   },
   searchRow: {
     display: 'flex',
@@ -118,15 +121,20 @@ export function Explore() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <Link to="/" style={styles.homeLink}>← Home</Link>
+        <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+          <ArrowLeft size={16} /> Home
+        </Link>
         <h1 style={styles.title}>Explore Servers</h1>
         <div style={styles.searchRow}>
-          <input
-            style={styles.search}
-            placeholder="Search servers..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#808090', pointerEvents: 'none' }} />
+            <input
+              style={{ ...styles.search, paddingLeft: '2.2rem', width: '100%' }}
+              placeholder="Search servers..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
           {(['popular', 'new', 'hot'] as const).map(s => (
             <button key={s} style={styles.sortBtn(sort === s)} onClick={() => setSort(s)}>
               {s.charAt(0).toUpperCase() + s.slice(1)}

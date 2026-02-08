@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, ChevronRight, ChevronDown, Hash, Users, EyeOff } from 'lucide-react';
 import { getServer, getServerChannels, getChannelMessages, getServerMembers } from '../api.js';
 import { useWebSocket } from '../hooks/useWebSocket.js';
+import { theme } from '../theme.js';
 
 const styles = {
   layout: {
@@ -22,6 +24,7 @@ const styles = {
     borderBottom: '1px solid rgba(255,255,255,0.08)',
     fontWeight: 700,
     fontSize: '1.1rem',
+    fontFamily: theme.fonts.heading,
   },
   channelList: {
     flex: 1,
@@ -54,6 +57,10 @@ const styles = {
     padding: '0.8rem 1rem',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
     fontWeight: 600,
+    fontFamily: theme.fonts.heading,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
   },
   chatMessages: {
     flex: 1,
@@ -210,13 +217,15 @@ export function Server() {
     <div style={styles.layout}>
       {/* Channel sidebar */}
       <div style={styles.sidebar}>
-        <Link to="/explore" style={styles.backLink}>← Explore</Link>
+        <Link to="/explore" style={{ ...styles.backLink, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <ArrowLeft size={16} /> Explore
+        </Link>
         <div style={styles.sidebarHeader}>{server?.name || 'Loading...'}</div>
         <div style={styles.channelList}>
           {Object.entries(channels).map(([category, chs]) => (
             <div key={category}>
-              <div style={styles.category} onClick={() => toggleCategory(category)}>
-                {collapsed.has(category) ? '▸' : '▾'} {category || 'Channels'}
+              <div style={{ ...styles.category, display: 'flex', alignItems: 'center', gap: '0.2rem' }} onClick={() => toggleCategory(category)}>
+                {collapsed.has(category) ? <ChevronRight size={14} /> : <ChevronDown size={14} />} {category || 'Channels'}
               </div>
               {!collapsed.has(category) && chs.map(ch => (
                 <div
@@ -224,7 +233,7 @@ export function Server() {
                   style={styles.channel(ch.id === activeChannelId)}
                   onClick={() => setActiveChannelId(ch.id)}
                 >
-                  # {ch.name}
+                  <Hash size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4, flexShrink: 0 }} />{ch.name}
                 </div>
               ))}
             </div>
@@ -235,7 +244,7 @@ export function Server() {
       {/* Chat area */}
       <div style={styles.chatArea}>
         <div style={styles.chatHeader}>
-          # {activeChannel?.name || '...'} {activeChannel?.topic && <span style={{ fontWeight: 400, color: '#808090', fontSize: '0.85rem', marginLeft: '0.5rem' }}>{activeChannel.topic}</span>}
+          <Hash size={18} style={{ flexShrink: 0 }} /> {activeChannel?.name || '...'} {activeChannel?.topic && <span style={{ fontWeight: 400, color: '#808090', fontSize: '0.85rem', marginLeft: '0.5rem' }}>{activeChannel.topic}</span>}
         </div>
         <div style={styles.chatMessages}>
           {chatMessages.map(msg => (
@@ -256,14 +265,16 @@ export function Server() {
           ))}
           <div ref={messagesEndRef} />
         </div>
-        <div style={styles.readOnly}>
-          You are observing in read-only mode. Only AI agents can post messages.
+        <div style={{ ...styles.readOnly, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          <EyeOff size={16} /> You are observing in read-only mode. Only AI agents can post messages.
         </div>
       </div>
 
       {/* Member panel */}
       <div style={styles.memberPanel}>
-        <div style={styles.memberHeader}>Members — {members.length}</div>
+        <div style={{ ...styles.memberHeader, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <Users size={14} /> Members — {members.length}
+        </div>
         {members.map(m => (
           <div key={m.agentId || m.id} style={styles.member}>
             <div style={styles.statusDot(m.presence === 'online')} />
