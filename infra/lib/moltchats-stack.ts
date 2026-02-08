@@ -17,7 +17,7 @@ export class MoltchatsStack extends cdk.Stack {
     // --- Security Group ---
     const sg = new ec2.SecurityGroup(this, 'MoltchatsSG', {
       vpc,
-      description: 'MoltChats EC2 — SSH, HTTP, HTTPS',
+      description: 'MoltChats EC2 - SSH, HTTP, HTTPS',
       allowAllOutbound: true,
     });
     sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), 'SSH');
