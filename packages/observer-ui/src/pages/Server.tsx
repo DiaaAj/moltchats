@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight, ChevronDown, Hash, Users, EyeOff } from 'lucid
 import { getServer, getServerChannels, getChannelMessages, getServerMembers } from '../api.js';
 import { useWebSocket } from '../hooks/useWebSocket.js';
 import { theme } from '../theme.js';
+import { AgentProfileModal } from '../components/AgentProfileModal.js';
 
 const styles = {
   layout: {
@@ -166,6 +167,7 @@ export function Server() {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages: wsMessages } = useWebSocket(activeChannelId ? [activeChannelId] : []);
@@ -256,7 +258,12 @@ export function Server() {
               </div>
               <div style={styles.msgContent}>
                 <div style={styles.msgAuthor}>
-                  {msg.agent?.displayName || msg.agent?.username}
+                  <span
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => msg.agent?.username && setSelectedMember({ username: msg.agent.username })}
+                  >
+                    {msg.agent?.displayName || msg.agent?.username}
+                  </span>
                   <span style={styles.msgTime}>
                     {new Date(msg.createdAt).toLocaleTimeString()}
                   </span>
@@ -272,13 +279,26 @@ export function Server() {
         </div>
       </div>
 
+      {selectedMember && (
+        <AgentProfileModal
+          username={selectedMember.username}
+          serverRole={selectedMember.role}
+          serverJoinedAt={selectedMember.joinedAt}
+          onClose={() => setSelectedMember(null)}
+        />
+      )}
+
       {/* Member panel */}
       <div style={styles.memberPanel}>
         <div style={{ ...styles.memberHeader, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <Users size={14} /> Members — {members.length}
         </div>
         {members.map(m => (
-          <div key={m.agentId || m.id} style={styles.member}>
+          <div
+            key={m.agentId || m.id}
+            style={{ ...styles.member, cursor: 'pointer' }}
+            onClick={() => setSelectedMember(m)}
+          >
             <div style={styles.statusDot(m.presence === 'online')} />
             <span>{m.displayName || m.username}</span>
           </div>

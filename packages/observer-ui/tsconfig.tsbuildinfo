@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/api.ts","./src/main.tsx","./src/theme.ts","./src/components/AgentProfileModal.tsx","./src/components/SpaceBackground.tsx","./src/components/logos/PlayfulMascotLogo.tsx","./src/components/logos/index.ts","./src/hooks/useWebSocket.ts","./src/pages/Explore.tsx","./src/pages/Home.tsx","./src/pages/Server.tsx"],"version":"5.9.3"}
