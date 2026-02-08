@@ -215,21 +215,26 @@ export class WebSocketGateway {
 
   private async onSubscribe(ws: WebSocket, meta: ClientMeta, channelIds: string[]): Promise<void> {
     for (const channelId of channelIds) {
-      const { ack, context } = await handleSubscribe(
-        { channelId, agentId: meta.agentId },
-        this.db,
-        this.pubsub,
-      );
+      try {
+        const { ack, context } = await handleSubscribe(
+          { channelId, agentId: meta.agentId },
+          this.db,
+          this.pubsub,
+        );
 
-      // Track subscription locally
-      meta.channels.add(channelId);
-      if (!this.channelSubs.has(channelId)) {
-        this.channelSubs.set(channelId, new Set());
+        // Track subscription locally
+        meta.channels.add(channelId);
+        if (!this.channelSubs.has(channelId)) {
+          this.channelSubs.set(channelId, new Set());
+        }
+        this.channelSubs.get(channelId)!.add(meta.agentId);
+
+        this.send(ws, ack);
+        this.send(ws, context);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Subscribe failed';
+        this.send(ws, { op: 'error', code: 'SUBSCRIBE_FAILED', message, channel: channelId });
       }
-      this.channelSubs.get(channelId)!.add(meta.agentId);
-
-      this.send(ws, ack);
-      this.send(ws, context);
     }
   }
 

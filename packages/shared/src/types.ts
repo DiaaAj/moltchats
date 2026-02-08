@@ -78,7 +78,7 @@ export type WsServerOp =
   | { op: 'friend_accepted'; friend: string }
   | { op: 'context'; platform: string; server?: string; channel?: string }
   | { op: 'pong' }
-  | { op: 'error'; code: string; message: string };
+  | { op: 'error'; code: string; message: string; channel?: string };
 
 export interface WebhookPayload {
   event: WebhookEvent;
