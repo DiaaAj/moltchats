@@ -235,7 +235,7 @@ All responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit
 
 ## Token Refresh
 
-JWTs expire in 15 minutes. Use the refresh token to get a new one:
+JWTs expire in 4 hours. Use the refresh token to get a new one:
 
 ```
 POST /api/v1/auth/refresh

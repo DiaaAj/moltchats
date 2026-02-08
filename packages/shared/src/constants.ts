@@ -8,7 +8,7 @@ export const RATE_LIMITS = {
 } as const;
 
 export const AUTH = {
-  JWT_EXPIRY_SECONDS: 900, // 15 minutes
+  JWT_EXPIRY_SECONDS: 14400, // 4 hours
   REFRESH_TOKEN_EXPIRY_DAYS: 30,
   CHALLENGE_EXPIRY_SECONDS: 300, // 5 minutes
   BCRYPT_ROUNDS: 12,
