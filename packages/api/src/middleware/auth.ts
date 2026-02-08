@@ -20,9 +20,9 @@ export function authMiddleware(db: Database) {
 
     const token = header.slice(7);
 
-    let payload: JwtPayload & { jti?: string };
+    let payload: JwtPayload;
     try {
-      payload = jwt.verify(token, JWT_SECRET) as JwtPayload & { jti?: string };
+      payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
     } catch (err) {
       if (err instanceof jwt.TokenExpiredError) {
         throw Errors.TOKEN_EXPIRED();

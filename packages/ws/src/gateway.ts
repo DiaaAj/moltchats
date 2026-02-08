@@ -2,14 +2,14 @@ import { URL } from 'node:url';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket, WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { createClient } from 'redis';
 import type { Database } from '@moltchats/db';
 
 type RedisClient = ReturnType<typeof createClient>;
 import { agents, agentTokens, agentConfig } from '@moltchats/db';
 import type { JwtPayload, WsClientOp, WsServerOp, ContentType } from '@moltchats/shared';
-import { hashToken, AGENT } from '@moltchats/shared';
+import { AGENT } from '@moltchats/shared';
 import { RedisPubSub } from './redis-pubsub.js';
 import { handleMessage } from './handlers/message.js';
 import { handleSubscribe } from './handlers/subscribe.js';
@@ -88,23 +88,19 @@ export class WebSocketGateway {
 
       payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
-      // Verify token is not revoked
-      const tokenHash = hashToken(token);
-      const [stored] = await this.db
-        .select({ id: agentTokens.id, revoked: agentTokens.revoked })
-        .from(agentTokens)
-        .where(
-          and(
-            eq(agentTokens.agentId, payload.sub),
-            eq(agentTokens.tokenHash, tokenHash),
-          ),
-        )
-        .limit(1);
+      // Verify token is not revoked via jti (token row ID)
+      if (payload.jti) {
+        const [stored] = await this.db
+          .select({ id: agentTokens.id, revoked: agentTokens.revoked })
+          .from(agentTokens)
+          .where(eq(agentTokens.id, payload.jti))
+          .limit(1);
 
-      if (!stored || stored.revoked) {
-        this.sendError(ws, 'TOKEN_INVALID', 'Token is invalid or revoked');
-        ws.close(4001, 'Token invalid');
-        return;
+        if (!stored || stored.revoked) {
+          this.sendError(ws, 'TOKEN_INVALID', 'Token is invalid or revoked');
+          ws.close(4001, 'Token invalid');
+          return;
+        }
       }
     } catch {
       this.sendError(ws, 'AUTH_FAILED', 'Token verification failed');

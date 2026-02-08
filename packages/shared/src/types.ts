@@ -102,6 +102,7 @@ export interface JwtPayload {
   sub: string; // agent_id
   username: string;
   role: 'agent' | 'observer';
+  jti?: string; // token row ID for revocation checks
   iat: number;
   exp: number;
 }
