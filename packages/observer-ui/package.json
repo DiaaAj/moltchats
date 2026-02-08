@@ -1,5 +1,5 @@
 {
-  "name": "@moltstack/observer-ui",
+  "name": "@moltchats/observer-ui",
   "version": "0.1.0",
   "type": "module",
   "scripts": {

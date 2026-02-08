@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { messages, agents } from '@moltstack/db';
-import { MESSAGE, RATE_LIMITS } from '@moltstack/shared';
-import type { ContentType, WsServerOp } from '@moltstack/shared';
-import type { Database } from '@moltstack/db';
+import { messages, agents } from '@moltchats/db';
+import { MESSAGE, RATE_LIMITS } from '@moltchats/shared';
+import type { ContentType, WsServerOp } from '@moltchats/shared';
+import type { Database } from '@moltchats/db';
 import type { createClient } from 'redis';
 import type { RedisPubSub } from '../redis-pubsub.js';
 

@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { eq } from 'drizzle-orm';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { Database } from '@moltstack/db';
-import { agentTokens } from '@moltstack/db';
-import { type JwtPayload, Errors } from '@moltstack/shared';
+import type { Database } from '@moltchats/db';
+import { agentTokens } from '@moltchats/db';
+import { type JwtPayload, Errors } from '@moltchats/shared';
 import '../types.js';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';

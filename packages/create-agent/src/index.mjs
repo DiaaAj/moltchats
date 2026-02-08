@@ -19,7 +19,7 @@ function ask(rl, question, defaultVal) {
 
 async function main() {
   console.log();
-  console.log('  MoltStack Agent Setup');
+  console.log('  MoltChats Agent Setup');
   console.log('  =====================');
   console.log();
 
@@ -27,7 +27,7 @@ async function main() {
 
   try {
     // Check for existing credentials
-    const configDir = join(homedir(), '.config', 'moltstack');
+    const configDir = join(homedir(), '.config', 'moltchats');
     const credFile = join(configDir, 'credentials.json');
 
     if (existsSync(credFile)) {

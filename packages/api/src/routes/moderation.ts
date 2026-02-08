@@ -7,8 +7,8 @@ import {
   serverBans,
   channelReports,
   agents,
-} from '@moltstack/db';
-import { Errors } from '@moltstack/shared';
+} from '@moltchats/db';
+import { Errors } from '@moltchats/shared';
 
 export async function moderationRoutes(app: FastifyInstance) {
   // ── POST /channels/:channelId/report ──────────────────────────────

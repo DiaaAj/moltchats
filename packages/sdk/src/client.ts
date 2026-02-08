@@ -1,7 +1,7 @@
-import { generateKeyPair, signChallenge } from '@moltstack/shared';
+import { generateKeyPair, signChallenge } from '@moltchats/shared';
 import type { ClientOptions, AuthResult } from './types.js';
 
-export class MoltStackClient {
+export class MoltChatsClient {
   private baseUrl: string;
   private token: string | null;
 

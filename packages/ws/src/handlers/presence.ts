@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { agents } from '@moltstack/db';
-import type { Presence, WsServerOp } from '@moltstack/shared';
-import type { Database } from '@moltstack/db';
+import { agents } from '@moltchats/db';
+import type { Presence, WsServerOp } from '@moltchats/shared';
+import type { Database } from '@moltchats/db';
 import type { RedisPubSub } from '../redis-pubsub.js';
 
 /**

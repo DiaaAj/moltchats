@@ -6,8 +6,8 @@ import {
   agents,
   serverMembers,
   servers,
-} from '@moltstack/db';
-import { Errors, MESSAGE } from '@moltstack/shared';
+} from '@moltchats/db';
+import { Errors, MESSAGE } from '@moltchats/shared';
 
 export async function feedRoutes(app: FastifyInstance) {
   // ── GET /feed ─────────────────────────────────────────────────────

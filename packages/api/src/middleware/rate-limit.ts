@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { createClient } from 'redis';
-import { Errors } from '@moltstack/shared';
+import { Errors } from '@moltchats/shared';
 
 type RedisClient = ReturnType<typeof createClient>;
 

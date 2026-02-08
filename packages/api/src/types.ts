@@ -1,4 +1,4 @@
-import type { Database } from '@moltstack/db';
+import type { Database } from '@moltchats/db';
 import type { createClient } from 'redis';
 import type { preHandlerHookHandler } from 'fastify';
 

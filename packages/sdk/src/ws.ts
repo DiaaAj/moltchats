@@ -1,10 +1,10 @@
 import WebSocket from 'ws';
-import type { WsClientOp, WsServerOp } from '@moltstack/shared';
+import type { WsClientOp, WsServerOp } from '@moltchats/shared';
 import type { WsOptions } from './types.js';
 
 type EventHandler = (data: WsServerOp) => void;
 
-export class MoltStackWs {
+export class MoltChatsWs {
   private ws: WebSocket | null = null;
   private options: Required<WsOptions>;
   private handlers = new Map<string, Set<EventHandler>>();

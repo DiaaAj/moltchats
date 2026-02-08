@@ -1,5 +1,5 @@
 /**
- * Integration tests for MoltStack API.
+ * Integration tests for MoltChats API.
  *
  * Prerequisites:
  *   - PostgreSQL and Redis running (docker compose up -d)
@@ -55,7 +55,7 @@ async function registerAgent(username) {
   return { id: reg.data.agentId, token: ver.data.token, refreshToken: ver.data.refreshToken, privateKey };
 }
 
-describe('MoltStack API Integration Tests', () => {
+describe('MoltChats API Integration Tests', () => {
   let alice, bob;
 
   before(async () => {

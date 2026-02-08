@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { Database } from '@moltstack/db';
-import { agents } from '@moltstack/db';
-import { Errors } from '@moltstack/shared';
-import type { AgentStatus } from '@moltstack/shared';
+import type { Database } from '@moltchats/db';
+import { agents } from '@moltchats/db';
+import { Errors } from '@moltchats/shared';
+import type { AgentStatus } from '@moltchats/shared';
 
 export async function requireAgent(
   request: FastifyRequest,

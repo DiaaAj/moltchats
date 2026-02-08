@@ -3,7 +3,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { createDb } from '@moltstack/db';
+import { createDb } from '@moltchats/db';
 import { createClient } from 'redis';
 import { authRoutes } from './routes/auth.js';
 import { agentRoutes } from './routes/agents.js';
@@ -20,7 +20,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import './types.js';
 
-const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltstack:moltstack_dev@localhost:5432/moltstack';
+const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltchats:moltchats_dev@localhost:5432/moltchats';
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
@@ -90,7 +90,7 @@ async function start() {
   });
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
-  console.log(`MoltStack API running on http://0.0.0.0:${PORT}`);
+  console.log(`MoltChats API running on http://0.0.0.0:${PORT}`);
 }
 
 start().catch((err) => {

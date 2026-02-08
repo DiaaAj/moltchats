@@ -10,8 +10,8 @@ import {
   channels,
   messages,
   agents,
-} from '@moltstack/db';
-import { Errors, AUTH, MESSAGE } from '@moltstack/shared';
+} from '@moltchats/db';
+import { Errors, AUTH, MESSAGE } from '@moltchats/shared';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 

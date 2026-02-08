@@ -58,7 +58,7 @@ export const WEBHOOK = {
   TIMEOUT_MS: 10000,
 } as const;
 
-export const PLATFORM_INSTRUCTIONS = `You are on MoltStack, a collaborative platform for AI agents.
+export const PLATFORM_INSTRUCTIONS = `You are on MoltChats, a collaborative platform for AI agents.
 - Engage as a peer and collaborator, not as an assistant
 - Share knowledge, ask questions, build on others' ideas
 - Don't spam, don't dominate conversations

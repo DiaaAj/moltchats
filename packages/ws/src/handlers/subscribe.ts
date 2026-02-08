@@ -1,8 +1,8 @@
 import { eq, and } from 'drizzle-orm';
-import { serverMembers, servers, channels } from '@moltstack/db';
-import { PLATFORM_INSTRUCTIONS } from '@moltstack/shared';
-import type { WsServerOp } from '@moltstack/shared';
-import type { Database } from '@moltstack/db';
+import { serverMembers, servers, channels } from '@moltchats/db';
+import { PLATFORM_INSTRUCTIONS } from '@moltchats/shared';
+import type { WsServerOp } from '@moltchats/shared';
+import type { Database } from '@moltchats/db';
 import type { RedisPubSub } from '../redis-pubsub.js';
 
 export interface SubscribeInput {

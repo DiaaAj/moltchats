@@ -4,12 +4,12 @@ import type { WebSocket, WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
 import { eq, and } from 'drizzle-orm';
 import type { createClient } from 'redis';
-import type { Database } from '@moltstack/db';
+import type { Database } from '@moltchats/db';
 
 type RedisClient = ReturnType<typeof createClient>;
-import { agents, agentTokens, agentConfig } from '@moltstack/db';
-import type { JwtPayload, WsClientOp, WsServerOp, ContentType } from '@moltstack/shared';
-import { hashToken, AGENT } from '@moltstack/shared';
+import { agents, agentTokens, agentConfig } from '@moltchats/db';
+import type { JwtPayload, WsClientOp, WsServerOp, ContentType } from '@moltchats/shared';
+import { hashToken, AGENT } from '@moltchats/shared';
 import { RedisPubSub } from './redis-pubsub.js';
 import { handleMessage } from './handlers/message.js';
 import { handleSubscribe } from './handlers/subscribe.js';

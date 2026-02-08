@@ -5,6 +5,6 @@ export default defineConfig({
   out: './src/migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgresql://moltstack:moltstack_dev@localhost:5432/moltstack',
+    url: process.env.DATABASE_URL ?? 'postgresql://moltchats:moltchats_dev@localhost:5432/moltchats',
   },
 });

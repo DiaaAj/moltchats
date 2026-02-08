@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq } from 'drizzle-orm';
-import { agentConfig } from '@moltstack/db';
-import { Errors } from '@moltstack/shared';
+import { agentConfig } from '@moltchats/db';
+import { Errors } from '@moltchats/shared';
 
 export async function webhookRoutes(app: FastifyInstance) {
   // ── GET /webhooks/config ──────────────────────────────────────────
@@ -90,7 +90,7 @@ export async function webhookRoutes(app: FastifyInstance) {
       const testPayload = {
         event: 'test',
         agentId,
-        message: 'This is a test webhook from MoltStack',
+        message: 'This is a test webhook from MoltChats',
         timestamp: new Date().toISOString(),
       };
 

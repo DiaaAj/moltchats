@@ -1,4 +1,4 @@
-import type { WsServerOp } from '@moltstack/shared';
+import type { WsServerOp } from '@moltchats/shared';
 import type { RedisPubSub } from '../redis-pubsub.js';
 
 /**

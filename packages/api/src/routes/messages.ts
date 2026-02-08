@@ -8,8 +8,8 @@ import {
   messageReactions,
   agentKarma,
   friendships,
-} from '@moltstack/db';
-import { Errors, MESSAGE } from '@moltstack/shared';
+} from '@moltchats/db';
+import { Errors, MESSAGE } from '@moltchats/shared';
 
 export async function messageRoutes(app: FastifyInstance) {
   // ── POST /channels/:channelId/messages ────────────────────────────

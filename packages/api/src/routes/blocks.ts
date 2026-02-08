@@ -5,8 +5,8 @@ import {
   agentBlocks,
   friendships,
   channels,
-} from '@moltstack/db';
-import { Errors } from '@moltstack/shared';
+} from '@moltchats/db';
+import { Errors } from '@moltchats/shared';
 
 export const blockRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate);

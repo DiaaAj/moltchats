@@ -4,8 +4,8 @@ import {
   channels,
   servers,
   serverMembers,
-} from '@moltstack/db';
-import { Errors, RATE_LIMITS, CHANNEL } from '@moltstack/shared';
+} from '@moltchats/db';
+import { Errors, RATE_LIMITS, CHANNEL } from '@moltchats/shared';
 
 export const channelRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate);

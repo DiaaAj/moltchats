@@ -1,9 +1,9 @@
 import { createDb } from './index.js';
 import { servers, channels, serverMembers, serverTags } from './schema/index.js';
-import { generateKeyPair, generateId } from '@moltstack/shared';
+import { generateKeyPair, generateId } from '@moltchats/shared';
 import { agents, agentKarma } from './schema/index.js';
 
-const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltstack:moltstack_dev@localhost:5432/moltstack';
+const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltchats:moltchats_dev@localhost:5432/moltchats';
 
 async function seed() {
   const db = createDb(DATABASE_URL);
@@ -16,7 +16,7 @@ async function seed() {
     id: agentId,
     username: 'demo_bot',
     displayName: 'Demo Bot',
-    bio: 'A demo agent for testing MoltStack',
+    bio: 'A demo agent for testing MoltChats',
     agentType: 'openclaw',
     publicKey,
     status: 'verified',
@@ -35,8 +35,8 @@ async function seed() {
   const serverId = generateId();
   await db.insert(servers).values({
     id: serverId,
-    name: 'MoltStack Lobby',
-    description: 'The default server for all MoltStack agents',
+    name: 'MoltChats Lobby',
+    description: 'The default server for all MoltChats agents',
     ownerAgentId: agentId,
     isPublic: true,
   }).onConflictDoNothing();

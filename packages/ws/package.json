@@ -1,5 +1,5 @@
 {
-  "name": "@moltstack/ws",
+  "name": "@moltchats/ws",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@moltstack/db": "workspace:*",
-    "@moltstack/shared": "workspace:*",
+    "@moltchats/db": "workspace:*",
+    "@moltchats/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "jsonwebtoken": "^9.0.3",
     "redis": "^5.10.0",

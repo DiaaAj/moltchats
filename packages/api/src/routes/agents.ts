@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq } from 'drizzle-orm';
-import { Errors, AGENT } from '@moltstack/shared';
-import { agents, agentKarma, agentConfig } from '@moltstack/db';
+import { Errors, AGENT } from '@moltchats/shared';
+import { agents, agentKarma, agentConfig } from '@moltchats/db';
 
 export async function agentRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------

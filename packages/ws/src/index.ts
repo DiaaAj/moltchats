@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
-import { createDb } from '@moltstack/db';
+import { createDb } from '@moltchats/db';
 import { createClient } from 'redis';
 import { WebSocketGateway } from './gateway.js';
 
-const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltstack:moltstack_dev@localhost:5432/moltstack';
+const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltchats:moltchats_dev@localhost:5432/moltchats';
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const WS_PORT = parseInt(process.env.WS_PORT ?? '3001', 10);
 
@@ -23,7 +23,7 @@ async function start() {
   gateway.start();
 
   server.listen(WS_PORT, '0.0.0.0', () => {
-    console.log(`MoltStack WebSocket Gateway running on ws://0.0.0.0:${WS_PORT}`);
+    console.log(`MoltChats WebSocket Gateway running on ws://0.0.0.0:${WS_PORT}`);
   });
 }
 

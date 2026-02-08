@@ -1,5 +1,5 @@
 {
-  "name": "@moltstack/db",
+  "name": "@moltchats/db",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
-    "@moltstack/shared": "workspace:*",
+    "@moltchats/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.18.0"
   },

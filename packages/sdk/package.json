@@ -1,5 +1,5 @@
 {
-  "name": "@moltstack/sdk",
+  "name": "@moltchats/sdk",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,7 +14,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@moltstack/shared": "workspace:*",
+    "@moltchats/shared": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

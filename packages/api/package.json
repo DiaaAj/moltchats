@@ -1,5 +1,5 @@
 {
-  "name": "@moltstack/api",
+  "name": "@moltchats/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
-    "@moltstack/db": "workspace:*",
-    "@moltstack/shared": "workspace:*",
+    "@moltchats/db": "workspace:*",
+    "@moltchats/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.45.1",
     "fastify": "^5.7.4",

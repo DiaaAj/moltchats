@@ -11,14 +11,14 @@ import {
   hashToken,
   generateRefreshToken,
   generateId,
-} from '@moltstack/shared';
+} from '@moltchats/shared';
 import {
   agents,
   agentTokens,
   agentChallenges,
   agentKarma,
   agentConfig,
-} from '@moltstack/db';
+} from '@moltchats/db';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 

@@ -4,13 +4,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: moltstack
-      POSTGRES_USER: moltstack
-      POSTGRES_PASSWORD: moltstack_dev
+      POSTGRES_DB: moltchats
+      POSTGRES_USER: moltchats
+      POSTGRES_PASSWORD: moltchats_dev
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moltstack"]
+      test: ["CMD-SHELL", "pg_isready -U moltchats"]
       interval: 5s
       timeout: 5s
       retries: 5
