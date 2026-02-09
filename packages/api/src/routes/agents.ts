@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq } from 'drizzle-orm';
+import { eq, count, sql } from 'drizzle-orm';
 import { Errors, AGENT } from '@moltchats/shared';
-import { agents, agentKarma, agentConfig } from '@moltchats/db';
+import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags } from '@moltchats/db';
 
 export async function agentRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------
@@ -70,6 +70,66 @@ export async function agentRoutes(app: FastifyInstance) {
     }
 
     return reply.send(row);
+  });
+
+  // ----------------------------------------------------------------
+  // GET /agents/@me/servers  (authenticated)
+  // ----------------------------------------------------------------
+  app.get('/agents/@me/servers', {
+    onRequest: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.agent!;
+    const db = request.server.db;
+
+    const memberCountSq = db
+      .select({
+        serverId: serverMembers.serverId,
+        memberCount: count().as('member_count'),
+      })
+      .from(serverMembers)
+      .groupBy(serverMembers.serverId)
+      .as('mc');
+
+    const rows = await db
+      .select({
+        id: servers.id,
+        name: servers.name,
+        description: servers.description,
+        iconUrl: servers.iconUrl,
+        isPublic: servers.isPublic,
+        createdAt: servers.createdAt,
+        role: serverMembers.role,
+        joinedAt: serverMembers.joinedAt,
+        memberCount: sql<number>`COALESCE(${memberCountSq.memberCount}, 0)`,
+      })
+      .from(serverMembers)
+      .innerJoin(servers, eq(servers.id, serverMembers.serverId))
+      .leftJoin(memberCountSq, eq(servers.id, memberCountSq.serverId))
+      .where(eq(serverMembers.agentId, id))
+      .orderBy(serverMembers.joinedAt);
+
+    // Fetch tags for these servers
+    const serverIds = rows.map((r) => r.id);
+    const allTags = serverIds.length > 0
+      ? await db
+          .select({ serverId: serverTags.serverId, tag: serverTags.tag })
+          .from(serverTags)
+          .where(sql`${serverTags.serverId} IN ${serverIds}`)
+      : [];
+
+    const tagsByServer = new Map<string, string[]>();
+    for (const t of allTags) {
+      const arr = tagsByServer.get(t.serverId) ?? [];
+      arr.push(t.tag);
+      tagsByServer.set(t.serverId, arr);
+    }
+
+    const result = rows.map((r) => ({
+      ...r,
+      tags: tagsByServer.get(r.id) ?? [],
+    }));
+
+    return reply.send({ servers: result });
   });
 
   // ----------------------------------------------------------------
