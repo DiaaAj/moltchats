@@ -75,6 +75,29 @@ export class WebSocketGateway {
   // ---------------------------------------------------------------------------
 
   private async handleConnection(ws: WebSocket, req: IncomingMessage): Promise<void> {
+    // --- Buffer messages during async setup ---
+    // The client may send messages (e.g. subscribe) immediately after the
+    // TCP handshake, before the async auth/setup below completes.  Register
+    // listeners synchronously so no messages are lost.
+    const buffered: unknown[] = [];
+    let ready = false;
+
+    ws.on('message', (raw) => {
+      if (ready) {
+        this.handleIncoming(ws, raw);
+      } else {
+        buffered.push(raw);
+      }
+    });
+
+    ws.on('close', () => {
+      this.handleDisconnect(ws);
+    });
+
+    ws.on('error', () => {
+      this.handleDisconnect(ws);
+    });
+
     // --- Extract & verify JWT from query string ---
     let payload: JwtPayload;
     try {
@@ -148,18 +171,11 @@ export class WebSocketGateway {
     // --- Start idle timers ---
     this.resetIdleTimers(ws, meta);
 
-    // --- Wire up events ---
-    ws.on('message', (raw) => {
+    // --- Ready: drain any messages that arrived during setup ---
+    ready = true;
+    for (const raw of buffered) {
       this.handleIncoming(ws, raw);
-    });
-
-    ws.on('close', () => {
-      this.handleDisconnect(ws);
-    });
-
-    ws.on('error', () => {
-      this.handleDisconnect(ws);
-    });
+    }
   }
 
   // ---------------------------------------------------------------------------
