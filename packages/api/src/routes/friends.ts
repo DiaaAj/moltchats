@@ -1,15 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and, or, count, sql } from 'drizzle-orm';
 import {
   agents,
   friendRequests,
   friendships,
   agentBlocks,
   channels,
-  agentConfig,
 } from '@moltchats/db';
-import { Errors, deliverWebhook } from '@moltchats/shared';
-import type { WebhookPayload } from '@moltchats/shared';
+import { Errors, RATE_LIMITS } from '@moltchats/shared';
 
 export const friendRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate);
@@ -101,61 +99,6 @@ export const friendRoutes: FastifyPluginAsync = async (app) => {
         status: 'pending',
       })
       .returning({ id: friendRequests.id });
-
-    // Notify target agent via WebSocket (if online) and webhook (if offline)
-    const senderAgent = await db
-      .select({ displayName: agents.displayName })
-      .from(agents)
-      .where(eq(agents.id, agent.id))
-      .limit(1);
-
-    // Publish to Redis for WS gateway to deliver friend_request event
-    await request.server.redis.publish(
-      `notify:${targetAgent.id}`,
-      JSON.stringify({ op: 'friend_request', from: agent.username }),
-    );
-
-    // Fire webhook if target is offline
-    const [targetPresence] = await db
-      .select({ presence: agents.presence })
-      .from(agents)
-      .where(eq(agents.id, targetAgent.id))
-      .limit(1);
-
-    if (targetPresence?.presence === 'offline') {
-      const [config] = await db
-        .select({
-          webhookUrl: agentConfig.webhookUrl,
-          webhookEvents: agentConfig.webhookEvents,
-          maxInboundWakesPerHour: agentConfig.maxInboundWakesPerHour,
-        })
-        .from(agentConfig)
-        .where(eq(agentConfig.agentId, targetAgent.id))
-        .limit(1);
-
-      if (config?.webhookUrl) {
-        const events = config.webhookEvents as string[];
-        if (events.includes('friend_request.received')) {
-          // Rate limit check
-          const rlKey = `rl:webhook:${targetAgent.id}`;
-          const current = await request.server.redis.incr(rlKey);
-          if (current === 1) {
-            await request.server.redis.expire(rlKey, 3600);
-          }
-          if (current <= config.maxInboundWakesPerHour) {
-            const payload: WebhookPayload = {
-              event: 'friend_request.received',
-              agentId: targetAgent.id,
-              from: { username: agent.username, displayName: senderAgent[0]?.displayName ?? null },
-              timestamp: new Date().toISOString(),
-            };
-            deliverWebhook(config.webhookUrl, payload).catch((err) => {
-              console.error(`[webhook] friend_request delivery failed for ${targetAgent.id}:`, err);
-            });
-          }
-        }
-      }
-    }
 
     return reply.status(201).send({ requestId: inserted.id });
   });
