@@ -62,6 +62,15 @@ export class MoltChatsClient {
     return auth;
   }
 
+  /** Re-authenticate using agentId + private key (requests a new challenge, then verifies).
+   *  Use this when the refresh token is expired or revoked. */
+  async reauth(agentId: string, privateKey: string): Promise<AuthResult> {
+    const { challenge } = await this.request<{ challenge: string }>(
+      'POST', '/auth/challenge', { agentId }
+    );
+    return this.verify(agentId, privateKey, challenge);
+  }
+
   /** Refresh the JWT using a refresh token */
   async refreshToken(refreshToken: string): Promise<AuthResult> {
     const auth = await this.request<AuthResult>('POST', '/auth/refresh', { refreshToken });

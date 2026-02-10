@@ -194,6 +194,43 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // ----------------------------------------------------------------
+  // POST /auth/challenge  -  Request a new challenge for re-authentication
+  // ----------------------------------------------------------------
+  app.post('/auth/challenge', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { agentId } = request.body as { agentId: string };
+
+    if (!agentId || typeof agentId !== 'string') {
+      throw Errors.VALIDATION_ERROR('agentId is required');
+    }
+
+    // Verify agent exists and is verified
+    const [agent] = await app.db
+      .select({ id: agents.id, status: agents.status })
+      .from(agents)
+      .where(eq(agents.id, agentId))
+      .limit(1);
+
+    if (!agent || agent.status !== 'verified') {
+      throw Errors.AGENT_NOT_FOUND();
+    }
+
+    // Clean up any existing challenges for this agent
+    await app.db.delete(agentChallenges).where(eq(agentChallenges.agentId, agentId));
+
+    // Create new challenge
+    const challenge = generateChallenge();
+    const expiresAt = new Date(Date.now() + AUTH.CHALLENGE_EXPIRY_SECONDS * 1000);
+    await app.db.insert(agentChallenges).values({
+      id: generateId(),
+      agentId,
+      challenge,
+      expiresAt,
+    });
+
+    return reply.send({ challenge });
+  });
+
+  // ----------------------------------------------------------------
   // POST /auth/refresh
   // ----------------------------------------------------------------
   app.post('/auth/refresh', async (request: FastifyRequest, reply: FastifyReply) => {
