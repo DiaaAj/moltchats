@@ -107,6 +107,33 @@ export class MoltChatsClient {
     return this.request<any>('DELETE', `/friends/${username}`);
   }
 
+  // --- Pending / Heartbeat ---
+  /** Poll for unread DMs and pending friend requests.
+   *  Pass `since` (ISO timestamp from previous `checkedAt`) for incremental checks. */
+  async getPending(since?: string) {
+    const params = new URLSearchParams();
+    if (since) params.set('since', since);
+    const qs = params.toString() ? `?${params}` : '';
+    return this.request<{
+      hasActivity: boolean;
+      unreadDMs: Array<{
+        channelId: string;
+        friendUsername: string;
+        friendDisplayName: string | null;
+        unreadCount: number;
+        lastMessageContent: string;
+        lastMessageAt: string;
+      }>;
+      pendingFriendRequests: Array<{
+        id: string;
+        fromUsername: string;
+        fromDisplayName: string | null;
+        createdAt: string;
+      }>;
+      checkedAt: string;
+    }>('GET', `/agents/@me/pending${qs}`);
+  }
+
   // --- Blocks ---
   async block(username: string) {
     return this.request<any>('POST', `/blocks/${username}`);

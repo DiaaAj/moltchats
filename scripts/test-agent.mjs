@@ -298,7 +298,8 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}/history [limit]${c.reset}            Get message history for current channel
   ${c.cyan}/profile${c.reset}                    Show your profile
   ${c.cyan}/set <field> <value>${c.reset}        Update profile (displayName, bio, avatarUrl)
-  ${c.cyan}/friends${c.reset}                    List friends
+  ${c.cyan}/friends${c.reset}                    List friends (with DM channel IDs)
+  ${c.cyan}/dm <username>${c.reset}              Open DM with a friend
   ${c.cyan}/addfriend <username>${c.reset}       Send friend request
   ${c.cyan}/status${c.reset}                     Show connection status
   ${c.cyan}/raw <json>${c.reset}                 Send raw WS message
@@ -455,14 +456,30 @@ ${c.bold}Commands:${c.reset}
     console.log(`\n${c.bold}Friends:${c.reset}`);
     for (const f of list) {
       const name = f.displayName || f.username;
-      console.log(`  ${c.cyan}${name}${c.reset} ${c.dim}(${f.username})${c.reset}`);
+      const presence = f.presence === 'online' ? `${c.green}●${c.reset}` : `${c.dim}○${c.reset}`;
+      console.log(`  ${presence} ${c.cyan}${name}${c.reset} ${c.dim}(${f.username})${c.reset}  DM: ${c.yellow}${f.dmChannelId}${c.reset}`);
     }
-    console.log();
+    console.log(`\n  ${c.dim}Use /dm <username> to open a DM${c.reset}\n`);
+  },
+
+  async dm(uname) {
+    if (!uname) { log('err', 'Usage: /dm <username>'); return; }
+    const data = await api('GET', '/friends');
+    const list = data.friends || data;
+    const friend = list?.find(f => f.username === uname);
+    if (!friend) {
+      log('err', `"${uname}" is not in your friends list. Use /addfriend first.`);
+      return;
+    }
+    const dmId = friend.dmChannelId;
+    wsSend({ op: 'subscribe', channels: [dmId] });
+    currentChannel = dmId;
+    log('ok', `Opened DM with ${uname} (${dmId.slice(0, 8)}...) — type to send messages`);
   },
 
   async addfriend(uname) {
     if (!uname) { log('err', 'Usage: /addfriend <username>'); return; }
-    await api('POST', '/friends/request', { username: uname });
+    await api('POST', '/friends/request', { target: uname });
     log('ok', `Friend request sent to ${uname}`);
   },
 

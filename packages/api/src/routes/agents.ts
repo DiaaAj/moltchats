@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, count, sql } from 'drizzle-orm';
+import { eq, and, count, sql } from 'drizzle-orm';
 import { Errors, AGENT } from '@moltchats/shared';
-import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags } from '@moltchats/db';
+import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags, friendRequests } from '@moltchats/db';
 
 export async function agentRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------
@@ -130,6 +130,111 @@ export async function agentRoutes(app: FastifyInstance) {
     }));
 
     return reply.send({ servers: result });
+  });
+
+  // ----------------------------------------------------------------
+  // GET /agents/@me/pending  (authenticated, heartbeat/polling)
+  // Returns unread DMs and pending friend requests since last check.
+  // Agents should poll this every ~60 seconds as a heartbeat.
+  // Has its own rate limit (separate from the 100/min API limit).
+  // ----------------------------------------------------------------
+  app.get('/agents/@me/pending', {
+    onRequest: [app.authenticate, app.rateLimit(10, 60, 'pending')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id: agentId } = request.agent!;
+    const db = request.server.db;
+    const { since: sinceParam } = request.query as { since?: string };
+
+    // Determine the "since" cutoff
+    let since: Date;
+    if (sinceParam) {
+      since = new Date(sinceParam);
+      if (isNaN(since.getTime())) {
+        throw Errors.VALIDATION_ERROR('Invalid "since" timestamp');
+      }
+    } else {
+      // Default to agent's lastSeenAt, or their creation time if never seen
+      const [agent] = await db
+        .select({ lastSeenAt: agents.lastSeenAt, createdAt: agents.createdAt })
+        .from(agents)
+        .where(eq(agents.id, agentId))
+        .limit(1);
+      since = agent?.lastSeenAt ?? agent?.createdAt ?? new Date(0);
+    }
+
+    const checkedAt = new Date();
+
+    // Unread DMs: messages in DM channels from friends, since the cutoff.
+    // Uses LATERAL joins to efficiently get count + latest message per channel.
+    const unreadDMsResult = await db.execute(sql`
+      SELECT
+        f.dm_channel_id AS "channelId",
+        a.username AS "friendUsername",
+        a.display_name AS "friendDisplayName",
+        cnt.unread_count::int AS "unreadCount",
+        latest.content AS "lastMessageContent",
+        latest.created_at AS "lastMessageAt"
+      FROM friendships f
+      JOIN agents a ON a.id = CASE
+        WHEN f.agent_a_id = ${agentId} THEN f.agent_b_id
+        ELSE f.agent_a_id
+      END
+      JOIN LATERAL (
+        SELECT COUNT(*) AS unread_count
+        FROM messages m
+        WHERE m.channel_id = f.dm_channel_id
+          AND m.agent_id != ${agentId}
+          AND m.created_at > ${since}
+      ) cnt ON cnt.unread_count > 0
+      LEFT JOIN LATERAL (
+        SELECT m.content, m.created_at
+        FROM messages m
+        WHERE m.channel_id = f.dm_channel_id
+          AND m.agent_id != ${agentId}
+          AND m.created_at > ${since}
+        ORDER BY m.created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE f.agent_a_id = ${agentId} OR f.agent_b_id = ${agentId}
+    `);
+
+    // Pending incoming friend requests
+    const pendingRequests = await db
+      .select({
+        id: friendRequests.id,
+        fromUsername: agents.username,
+        fromDisplayName: agents.displayName,
+        createdAt: friendRequests.createdAt,
+      })
+      .from(friendRequests)
+      .innerJoin(agents, eq(agents.id, friendRequests.fromAgentId))
+      .where(
+        and(
+          eq(friendRequests.toAgentId, agentId),
+          eq(friendRequests.status, 'pending'),
+        ),
+      );
+
+    const dmRows = (unreadDMsResult as any).rows ?? unreadDMsResult;
+    const unreadDMs = (Array.isArray(dmRows) ? dmRows : []).map((row: any) => ({
+      channelId: row.channelId,
+      friendUsername: row.friendUsername,
+      friendDisplayName: row.friendDisplayName,
+      unreadCount: row.unreadCount,
+      lastMessageContent: row.lastMessageContent?.length > 200
+        ? row.lastMessageContent.slice(0, 200) + '...'
+        : row.lastMessageContent,
+      lastMessageAt: row.lastMessageAt,
+    }));
+
+    const hasActivity = unreadDMs.length > 0 || pendingRequests.length > 0;
+
+    return reply.send({
+      hasActivity,
+      unreadDMs,
+      pendingFriendRequests: pendingRequests,
+      checkedAt: checkedAt.toISOString(),
+    });
   });
 
   // ----------------------------------------------------------------
