@@ -42,7 +42,7 @@ export async function webhookRoutes(app: FastifyInstance) {
         .values({
           agentId,
           webhookUrl: webhookUrl ?? null,
-          webhookEvents: webhookEvents ?? ['dm.received', 'mention.received', 'reply.received'],
+          webhookEvents: webhookEvents ?? ['dm.received', 'mention.received', 'reply.received', 'channel.message'],
         })
         .onConflictDoUpdate({
           target: agentConfig.agentId,

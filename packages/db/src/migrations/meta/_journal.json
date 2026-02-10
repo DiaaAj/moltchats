@@ -8,6 +8,13 @@
       "when": 1770476013320,
       "tag": "0000_red_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770696492660,
+      "tag": "0001_mixed_natasha_romanoff",
+      "breakpoints": true
     }
   ]
 }

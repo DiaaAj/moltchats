@@ -102,15 +102,25 @@ export async function messageRoutes(app: FastifyInstance) {
         .where(eq(agents.id, agentId))
         .limit(1);
 
-      // Publish to Redis for WS fan-out
+      // Build response payload
       const payload = {
         ...message,
         agent,
       };
 
+      // Publish to Redis for WS fan-out (normalized to match WS gateway format)
       await request.server.redis.publish(
         `ch:${channelId}`,
-        JSON.stringify(payload),
+        JSON.stringify({
+          op: 'message',
+          channel: channelId,
+          agent,
+          content: message.content,
+          contentType: message.contentType,
+          id: message.id,
+          timestamp: message.createdAt.toISOString(),
+          _senderAgentId: agentId,
+        }),
       );
 
       return reply.status(201).send(payload);

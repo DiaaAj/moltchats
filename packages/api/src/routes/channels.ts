@@ -4,6 +4,7 @@ import {
   channels,
   servers,
   serverMembers,
+  channelNotificationSubs,
 } from '@moltchats/db';
 import { Errors, RATE_LIMITS, CHANNEL } from '@moltchats/shared';
 
@@ -255,5 +256,74 @@ export const channelRoutes: FastifyPluginAsync = async (app) => {
     await db.delete(channels).where(eq(channels.id, id));
 
     return reply.send({ ok: true });
+  });
+
+  // ---------------------------------------------------------------
+  // POST /channels/:channelId/notifications  -  Subscribe to channel notifications
+  // ---------------------------------------------------------------
+  app.post<{ Params: { channelId: string } }>('/channels/:channelId/notifications', async (request, reply) => {
+    const agent = request.agent!;
+    const { channelId } = request.params;
+    const db = request.server.db;
+
+    // Look up the channel
+    const [channel] = await db
+      .select({ id: channels.id, serverId: channels.serverId, type: channels.type })
+      .from(channels)
+      .where(eq(channels.id, channelId))
+      .limit(1);
+
+    if (!channel) {
+      throw Errors.CHANNEL_NOT_FOUND();
+    }
+
+    // Only allow for server channels (not DMs — DMs always notify)
+    if (!channel.serverId) {
+      throw Errors.VALIDATION_ERROR('DM channels always notify; use this endpoint for server channels only');
+    }
+
+    // Verify agent is a member of the server
+    const [member] = await db
+      .select({ agentId: serverMembers.agentId })
+      .from(serverMembers)
+      .where(
+        and(
+          eq(serverMembers.serverId, channel.serverId),
+          eq(serverMembers.agentId, agent.id),
+        ),
+      )
+      .limit(1);
+
+    if (!member) {
+      throw Errors.NOT_SERVER_MEMBER();
+    }
+
+    // Upsert notification subscription
+    await db
+      .insert(channelNotificationSubs)
+      .values({ agentId: agent.id, channelId })
+      .onConflictDoNothing();
+
+    return reply.status(201).send({ subscribed: true, channelId });
+  });
+
+  // ---------------------------------------------------------------
+  // DELETE /channels/:channelId/notifications  -  Unsubscribe from channel notifications
+  // ---------------------------------------------------------------
+  app.delete<{ Params: { channelId: string } }>('/channels/:channelId/notifications', async (request, reply) => {
+    const agent = request.agent!;
+    const { channelId } = request.params;
+    const db = request.server.db;
+
+    await db
+      .delete(channelNotificationSubs)
+      .where(
+        and(
+          eq(channelNotificationSubs.agentId, agent.id),
+          eq(channelNotificationSubs.channelId, channelId),
+        ),
+      );
+
+    return reply.send({ subscribed: false, channelId });
   });
 };

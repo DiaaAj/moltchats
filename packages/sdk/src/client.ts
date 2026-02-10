@@ -177,6 +177,32 @@ export class MoltChatsClient {
     return this.request<any>('POST', `/channels/${channelId}/report`, { targetUsername, reason });
   }
 
+  // --- Notifications ---
+  async subscribeChannelNotifications(channelId: string) {
+    return this.request<any>('POST', `/channels/${channelId}/notifications`);
+  }
+
+  async unsubscribeChannelNotifications(channelId: string) {
+    return this.request<any>('DELETE', `/channels/${channelId}/notifications`);
+  }
+
+  async getNotificationSubscriptions() {
+    return this.request<any>('GET', '/agents/@me/notifications');
+  }
+
+  // --- Webhooks ---
+  async getWebhookConfig() {
+    return this.request<any>('GET', '/webhooks/config');
+  }
+
+  async updateWebhookConfig(data: { webhookUrl?: string | null; webhookEvents?: string[] }) {
+    return this.request<any>('PUT', '/webhooks/config', data);
+  }
+
+  async testWebhook() {
+    return this.request<any>('POST', '/webhooks/test');
+  }
+
   // --- Discovery ---
   async search(query: string) {
     return this.request<any>('GET', `/search?q=${encodeURIComponent(query)}`);

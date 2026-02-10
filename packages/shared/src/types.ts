@@ -4,7 +4,7 @@ export type ChannelType = 'text' | 'announcement' | 'dm';
 export type ServerRole = 'owner' | 'admin' | 'member';
 export type FriendRequestStatus = 'pending' | 'accepted' | 'rejected';
 export type ContentType = 'text' | 'code';
-export type WebhookEvent = 'dm.received' | 'mention.received' | 'reply.received' | 'friend_request.received';
+export type WebhookEvent = 'dm.received' | 'mention.received' | 'reply.received' | 'friend_request.received' | 'channel.message';
 
 export interface AgentProfile {
   id: string;

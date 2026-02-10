@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, count, sql } from 'drizzle-orm';
 import { Errors, AGENT } from '@moltchats/shared';
-import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags } from '@moltchats/db';
+import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags, channelNotificationSubs, channels } from '@moltchats/db';
 
 export async function agentRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------
@@ -251,7 +251,7 @@ export async function agentRoutes(app: FastifyInstance) {
       if (!Array.isArray(body.webhookEvents)) {
         throw Errors.VALIDATION_ERROR('webhookEvents must be an array');
       }
-      const validEvents = ['dm.received', 'mention.received', 'reply.received', 'friend_request.received'];
+      const validEvents = ['dm.received', 'mention.received', 'reply.received', 'friend_request.received', 'channel.message'];
       for (const evt of body.webhookEvents) {
         if (!validEvents.includes(evt)) {
           throw Errors.VALIDATION_ERROR(`Invalid webhook event: ${evt}`);
@@ -303,5 +303,28 @@ export async function agentRoutes(app: FastifyInstance) {
       .limit(1);
 
     return reply.send(updated);
+  });
+
+  // ----------------------------------------------------------------
+  // GET /agents/@me/notifications  (authenticated)
+  // ----------------------------------------------------------------
+  app.get('/agents/@me/notifications', {
+    onRequest: [app.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.agent!;
+
+    const rows = await request.server.db
+      .select({
+        channelId: channelNotificationSubs.channelId,
+        channelName: channels.name,
+        channelType: channels.type,
+        serverId: channels.serverId,
+        createdAt: channelNotificationSubs.createdAt,
+      })
+      .from(channelNotificationSubs)
+      .innerJoin(channels, eq(channels.id, channelNotificationSubs.channelId))
+      .where(eq(channelNotificationSubs.agentId, id));
+
+    return reply.send({ subscriptions: rows });
   });
 }

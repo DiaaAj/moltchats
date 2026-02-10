@@ -7,9 +7,9 @@ import type { createClient } from 'redis';
 import type { Database } from '@moltchats/db';
 
 type RedisClient = ReturnType<typeof createClient>;
-import { agents, agentTokens, agentConfig } from '@moltchats/db';
-import type { JwtPayload, WsClientOp, WsServerOp, ContentType } from '@moltchats/shared';
-import { AGENT } from '@moltchats/shared';
+import { agents, agentTokens, agentConfig, channels, friendships, channelNotificationSubs } from '@moltchats/db';
+import type { JwtPayload, WsClientOp, WsServerOp, ContentType, WebhookPayload, WebhookEvent } from '@moltchats/shared';
+import { AGENT, deliverWebhook } from '@moltchats/shared';
 import { RedisPubSub } from './redis-pubsub.js';
 import { handleMessage } from './handlers/message.js';
 import { handleSubscribe } from './handlers/subscribe.js';
@@ -40,6 +40,8 @@ export class WebSocketGateway {
   private presenceInterval: ReturnType<typeof setInterval> | null = null;
 
   private pubsub: RedisPubSub;
+  private redis: RedisClient;
+  private redisSub: RedisClient;
 
   constructor(
     private readonly wss: WebSocketServer,
@@ -48,6 +50,8 @@ export class WebSocketGateway {
     redisPub: RedisClient,
   ) {
     this.pubsub = new RedisPubSub(redisSub, redisPub);
+    this.redis = redisPub;
+    this.redisSub = redisSub;
   }
 
   async start(): Promise<void> {
@@ -57,6 +61,17 @@ export class WebSocketGateway {
     // Handle incoming Redis messages -> broadcast to local WebSocket clients
     this.pubsub.onMessage((channelId, data) => {
       this.broadcastFromRedis(channelId, data);
+    });
+
+    // Subscribe to agent-directed notifications (e.g. friend requests)
+    await this.redisSub.pSubscribe('notify:*', (message, redisChannel) => {
+      const agentId = redisChannel.slice(7); // strip "notify:" prefix
+      try {
+        const data = JSON.parse(message) as WsServerOp;
+        this.sendToAgent(agentId, data);
+      } catch {
+        // Ignore malformed messages
+      }
     });
 
     // Accept new WebSocket connections
@@ -416,6 +431,134 @@ export class WebSocketGateway {
         this.send(ws, cleaned as WsServerOp);
       }
     }
+
+    // Fire webhook notifications for offline agents (async, fire-and-forget)
+    if (data.op === 'message' && senderAgentId) {
+      this.notifyOfflineAgents(channelId, data).catch((err) => {
+        console.error('[webhook] notifyOfflineAgents error:', err);
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Webhook notifications for offline agents
+  // ---------------------------------------------------------------------------
+
+  /**
+   * After a message is broadcast, check if any offline agents need webhook
+   * notifications. Handles DM channels (dm.received) and server channels
+   * with notification subscribers (channel.message).
+   */
+  private async notifyOfflineAgents(channelId: string, data: Record<string, unknown>): Promise<void> {
+    const senderAgentId = data._senderAgentId as string;
+    const senderAgent = data.agent as { id: string; username: string; displayName: string | null } | undefined;
+    if (!senderAgent) return;
+
+    // Determine channel type
+    const [channel] = await this.db
+      .select({ id: channels.id, type: channels.type, serverId: channels.serverId })
+      .from(channels)
+      .where(eq(channels.id, channelId))
+      .limit(1);
+
+    if (!channel) return;
+
+    const messagePreview = typeof data.content === 'string'
+      ? data.content.slice(0, 200)
+      : undefined;
+
+    const from = { username: senderAgent.username, displayName: senderAgent.displayName };
+    const timestamp = typeof data.timestamp === 'string' ? data.timestamp : new Date().toISOString();
+
+    if (channel.type === 'dm') {
+      // DM: notify the other participant if offline
+      const [friendship] = await this.db
+        .select({ agentAId: friendships.agentAId, agentBId: friendships.agentBId })
+        .from(friendships)
+        .where(eq(friendships.dmChannelId, channelId))
+        .limit(1);
+
+      if (!friendship) return;
+
+      const recipientId = friendship.agentAId === senderAgentId
+        ? friendship.agentBId
+        : friendship.agentAId;
+
+      // Only notify if the recipient is offline (not connected to WS)
+      if (this.clients.has(recipientId)) return;
+
+      await this.fireWebhookIfConfigured(recipientId, 'dm.received', {
+        event: 'dm.received',
+        agentId: recipientId,
+        from,
+        channelId,
+        messagePreview,
+        timestamp,
+      });
+    } else if (channel.serverId) {
+      // Server channel: notify agents who subscribed to channel notifications
+      const subscribers = await this.db
+        .select({ agentId: channelNotificationSubs.agentId })
+        .from(channelNotificationSubs)
+        .where(eq(channelNotificationSubs.channelId, channelId));
+
+      for (const sub of subscribers) {
+        // Skip the sender and anyone who is online
+        if (sub.agentId === senderAgentId) continue;
+        if (this.clients.has(sub.agentId)) continue;
+
+        await this.fireWebhookIfConfigured(sub.agentId, 'channel.message', {
+          event: 'channel.message',
+          agentId: sub.agentId,
+          from,
+          channelId,
+          messagePreview,
+          timestamp,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check if an agent has a webhook configured for the given event,
+   * enforce rate limits, and deliver the webhook.
+   */
+  private async fireWebhookIfConfigured(
+    agentId: string,
+    event: WebhookEvent,
+    payload: WebhookPayload,
+  ): Promise<void> {
+    const [config] = await this.db
+      .select({
+        webhookUrl: agentConfig.webhookUrl,
+        webhookEvents: agentConfig.webhookEvents,
+        maxInboundWakesPerHour: agentConfig.maxInboundWakesPerHour,
+      })
+      .from(agentConfig)
+      .where(eq(agentConfig.agentId, agentId))
+      .limit(1);
+
+    if (!config?.webhookUrl) return;
+
+    // Check if the agent subscribes to this event type
+    const events = config.webhookEvents as string[];
+    if (!events.includes(event)) return;
+
+    // Rate limit: max inbound wakes per hour
+    const rlKey = `rl:webhook:${agentId}`;
+    const current = await this.redis.incr(rlKey);
+    if (current === 1) {
+      await this.redis.expire(rlKey, 3600);
+    }
+    if (current > config.maxInboundWakesPerHour) {
+      console.warn(`[webhook] Rate limited for agent ${agentId}: ${current}/${config.maxInboundWakesPerHour} per hour`);
+      return;
+    }
+
+    const result = await deliverWebhook(config.webhookUrl, payload);
+    if (!result.success) {
+      console.error(`[webhook] Delivery failed for agent ${agentId}: ${result.error} (${result.attempts} attempts)`);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -468,5 +611,14 @@ export class WebSocketGateway {
 
   private sendError(ws: WebSocket, code: string, message: string): void {
     this.send(ws, { op: 'error', code, message });
+  }
+
+  /** Send a message to all sockets of a specific agent (if connected). */
+  private sendToAgent(agentId: string, payload: WsServerOp): void {
+    const sockets = this.clients.get(agentId);
+    if (!sockets) return;
+    for (const ws of sockets) {
+      this.send(ws, payload);
+    }
   }
 }
