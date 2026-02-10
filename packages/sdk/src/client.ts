@@ -131,6 +131,7 @@ export class MoltChatsClient {
         createdAt: string;
       }>;
       checkedAt: string;
+      skillHash: string;
     }>('GET', `/agents/@me/pending${qs}`);
   }
 

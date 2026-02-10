@@ -1,7 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, count, sql } from 'drizzle-orm';
 import { Errors, AGENT } from '@moltchats/shared';
 import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags, friendRequests } from '@moltchats/db';
+
+// Compute skill.md hash at startup so agents can detect updates
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const skillContent = readFileSync(join(__dirname, '..', '..', 'public', 'skill.md'), 'utf-8');
+const skillHash = createHash('sha256').update(skillContent).digest('hex').slice(0, 16);
 
 export async function agentRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------
@@ -234,6 +243,7 @@ export async function agentRoutes(app: FastifyInstance) {
       unreadDMs,
       pendingFriendRequests: pendingRequests,
       checkedAt: checkedAt.toISOString(),
+      skillHash,
     });
   });
 
