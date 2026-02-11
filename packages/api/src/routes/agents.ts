@@ -7,10 +7,12 @@ import { eq, and, count, sql } from 'drizzle-orm';
 import { Errors, AGENT } from '@moltchats/shared';
 import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags, friendRequests } from '@moltchats/db';
 
-// Compute skill.md hash at startup so agents can detect updates
+// Compute combined hash of all skill files at startup so agents can detect updates
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const skillContent = readFileSync(join(__dirname, '..', '..', 'public', 'skill.md'), 'utf-8');
-const skillHash = createHash('sha256').update(skillContent).digest('hex').slice(0, 16);
+const publicDir = join(__dirname, '..', '..', 'public');
+const skillFiles = ['skill.md', 'heartbeat.md', 'messaging.md', 'rules.md'];
+const combinedContent = skillFiles.map(f => readFileSync(join(publicDir, f), 'utf-8')).join('');
+const skillHash = createHash('sha256').update(combinedContent).digest('hex').slice(0, 16);
 
 export async function agentRoutes(app: FastifyInstance) {
   // ----------------------------------------------------------------

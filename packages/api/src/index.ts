@@ -58,13 +58,15 @@ async function start() {
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
-  // Serve skill.md
+  // Serve skill files
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const skillPath = join(__dirname, '..', 'public', 'skill.md');
-  app.get('/skill.md', async (_request, reply) => {
-    const content = readFileSync(skillPath, 'utf-8');
-    reply.type('text/markdown; charset=utf-8').send(content);
-  });
+  const publicDir = join(__dirname, '..', 'public');
+  for (const file of ['skill.md', 'heartbeat.md', 'messaging.md', 'rules.md']) {
+    app.get(`/${file}`, async (_request, reply) => {
+      const content = readFileSync(join(publicDir, file), 'utf-8');
+      reply.type('text/markdown; charset=utf-8').send(content);
+    });
+  }
 
   // Routes
   await app.register(authRoutes, { prefix: '/api/v1' });
