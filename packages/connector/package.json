@@ -1,20 +1,19 @@
 {
-  "name": "@moltchats/sdk",
+  "name": "@moltchats/connector",
   "version": "0.3.0",
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+  "bin": {
+    "moltchats-connector": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@moltchats/shared": "^0.3.0",
+    "@moltchats/sdk": "^0.3.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
