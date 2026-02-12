@@ -149,6 +149,23 @@ async function refreshToken(creds) {
   return creds;
 }
 
+async function reauth(creds) {
+  log('info', 'Re-authenticating via challenge-response...');
+  const { challenge } = await api('POST', '/auth/challenge', { agentId: creds.agentId });
+  const signer = createSign('SHA256');
+  signer.update(challenge);
+  signer.end();
+  const signedChallenge = signer.sign(creds.privateKey, 'base64');
+  const auth = await api('POST', '/agents/verify', {
+    agentId: creds.agentId,
+    signedChallenge,
+  });
+  creds.token = auth.token;
+  creds.refreshToken = auth.refreshToken;
+  saveCredentials(creds);
+  return creds;
+}
+
 async function authenticate() {
   let creds = loadCredentials();
 
@@ -171,7 +188,15 @@ async function authenticate() {
         log('ok', 'Token refreshed');
         return;
       } catch {
-        log('warn', 'Refresh failed, re-registering...');
+        // Try challenge-response reauth
+        try {
+          creds = await reauth(creds);
+          token = creds.token;
+          log('ok', 'Re-authenticated via challenge-response');
+          return;
+        } catch {
+          log('warn', 'Re-auth failed, re-registering...');
+        }
       }
     }
   }
@@ -301,6 +326,10 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}/friends${c.reset}                    List friends (with DM channel IDs)
   ${c.cyan}/dm <username>${c.reset}              Open DM with a friend
   ${c.cyan}/addfriend <username>${c.reset}       Send friend request
+  ${c.cyan}/requests${c.reset}                    Show pending friend requests
+  ${c.cyan}/accept <username>${c.reset}          Accept a friend request
+  ${c.cyan}/reject <username>${c.reset}          Reject a friend request
+  ${c.cyan}/pending${c.reset}                     Check heartbeat (unread DMs, friend requests)
   ${c.cyan}/status${c.reset}                     Show connection status
   ${c.cyan}/raw <json>${c.reset}                 Send raw WS message
   ${c.cyan}/quit${c.reset}                       Exit
@@ -481,6 +510,82 @@ ${c.bold}Commands:${c.reset}
     if (!uname) { log('err', 'Usage: /addfriend <username>'); return; }
     await api('POST', '/friends/request', { target: uname });
     log('ok', `Friend request sent to ${uname}`);
+  },
+
+  async requests() {
+    const data = await api('GET', '/friends/requests');
+    const incoming = data.incoming || [];
+    const outgoing = data.outgoing || [];
+    if (!incoming.length && !outgoing.length) {
+      log('info', 'No pending friend requests');
+      return;
+    }
+    if (incoming.length) {
+      console.log(`\n${c.bold}Incoming:${c.reset}`);
+      for (const r of incoming) {
+        const time = new Date(r.createdAt).toLocaleString();
+        console.log(`  ${c.cyan}${r.fromUsername}${c.reset} ${c.dim}(${time})${c.reset}  ID: ${c.yellow}${r.id}${c.reset}`);
+      }
+    }
+    if (outgoing.length) {
+      console.log(`\n${c.bold}Outgoing:${c.reset}`);
+      for (const r of outgoing) {
+        const time = new Date(r.createdAt).toLocaleString();
+        console.log(`  ${c.cyan}${r.toUsername}${c.reset} ${c.dim}(${time})${c.reset}  ID: ${c.yellow}${r.id}${c.reset}`);
+      }
+    }
+    console.log(`\n  ${c.dim}Use /accept <username> or /reject <username>${c.reset}\n`);
+  },
+
+  async accept(uname) {
+    if (!uname) { log('err', 'Usage: /accept <username>'); return; }
+    const data = await api('GET', '/friends/requests');
+    const incoming = data.incoming || [];
+    const req = incoming.find(r => r.fromUsername === uname);
+    if (!req) {
+      log('err', `No pending request from "${uname}"`);
+      return;
+    }
+    const result = await api('POST', '/friends/accept', { requestId: req.id });
+    log('ok', `Accepted friend request from ${uname}`);
+    if (result?.dmChannelId) {
+      log('info', `DM channel: ${result.dmChannelId}`);
+    }
+  },
+
+  async reject(uname) {
+    if (!uname) { log('err', 'Usage: /reject <username>'); return; }
+    const data = await api('GET', '/friends/requests');
+    const incoming = data.incoming || [];
+    const req = incoming.find(r => r.fromUsername === uname);
+    if (!req) {
+      log('err', `No pending request from "${uname}"`);
+      return;
+    }
+    await api('POST', '/friends/reject', { requestId: req.id });
+    log('ok', `Rejected friend request from ${uname}`);
+  },
+
+  async pending() {
+    const data = await api('GET', '/agents/@me/pending');
+    if (!data.hasActivity) {
+      log('info', 'No pending activity');
+      return;
+    }
+    if (data.unreadDMs?.length) {
+      console.log(`\n${c.bold}Unread DMs:${c.reset}`);
+      for (const dm of data.unreadDMs) {
+        console.log(`  ${c.cyan}@${dm.friendUsername}${c.reset} (${dm.unreadCount} unread)  Channel: ${c.yellow}${dm.channelId}${c.reset}`);
+        console.log(`    ${c.dim}Latest: ${dm.lastMessageContent.slice(0, 80)}${c.reset}`);
+      }
+    }
+    if (data.pendingFriendRequests?.length) {
+      console.log(`\n${c.bold}Pending Friend Requests:${c.reset}`);
+      for (const r of data.pendingFriendRequests) {
+        console.log(`  ${c.cyan}@${r.fromUsername}${c.reset} ${c.dim}(${new Date(r.createdAt).toLocaleString()})${c.reset}`);
+      }
+    }
+    console.log();
   },
 
   async react(msgIdAndEmoji) {
