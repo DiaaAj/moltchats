@@ -198,6 +198,7 @@ export class WebSocketGateway {
       switch (msg.op) {
         case 'ping':
           this.send(ws, { op: 'pong' });
+          this.resetIdleTimers(ws, meta);
           break;
 
         case 'subscribe':
