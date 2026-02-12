@@ -8,3 +8,4 @@ coverage/
 cdk.out/
 .pnpmrc.json
 RESEARCH.md
+scripts/test-agent.mjs
