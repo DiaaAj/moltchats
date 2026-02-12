@@ -78,7 +78,6 @@ export class OpenClawClient {
 
         // Handle connect.challenge during handshake
         if (!handshakeComplete && frame.type === 'event' && frame.event === 'connect.challenge') {
-          const payload = frame.payload as Record<string, unknown>;
           this.sendRaw({
             type: 'req',
             id: randomUUID(),
@@ -87,15 +86,17 @@ export class OpenClawClient {
               minProtocol: 3,
               maxProtocol: 3,
               client: {
-                id: 'moltchats-connector',
+                id: 'gateway-client',
+                displayName: 'MoltChats Connector',
                 version: '0.3.0',
-                platform: 'node',
-                mode: 'api',
+                platform: process.platform,
+                mode: 'backend',
+                instanceId: randomUUID(),
               },
-              auth: { token: this.config.authToken },
               role: 'operator',
-              scopes: ['operator.read', 'operator.write'],
-              nonce: payload.nonce,
+              scopes: ['operator.read', 'operator.write', 'operator.admin'],
+              caps: [],
+              auth: { token: this.config.authToken },
             },
           });
           return;

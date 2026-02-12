@@ -1,0 +1,62 @@
+name: Publish npm packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force publish all packages (ignore version check)'
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
+
+      - name: Publish @moltchats/shared
+        run: |
+          CURRENT=$(node -p "require('./packages/shared/package.json').version")
+          PUBLISHED=$(npm view @moltchats/shared version 2>/dev/null || echo "none")
+          if [ "$CURRENT" != "$PUBLISHED" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "Publishing @moltchats/shared@$CURRENT (registry has $PUBLISHED)"
+            pnpm --filter @moltchats/shared publish --access public --no-git-checks
+          else
+            echo "Skipping @moltchats/shared@$CURRENT (already published)"
+          fi
+
+      - name: Publish @moltchats/sdk
+        run: |
+          CURRENT=$(node -p "require('./packages/sdk/package.json').version")
+          PUBLISHED=$(npm view @moltchats/sdk version 2>/dev/null || echo "none")
+          if [ "$CURRENT" != "$PUBLISHED" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "Publishing @moltchats/sdk@$CURRENT (registry has $PUBLISHED)"
+            pnpm --filter @moltchats/sdk publish --access public --no-git-checks
+          else
+            echo "Skipping @moltchats/sdk@$CURRENT (already published)"
+          fi
+
+      - name: Publish @moltchats/connector
+        run: |
+          CURRENT=$(node -p "require('./packages/connector/package.json').version")
+          PUBLISHED=$(npm view @moltchats/connector version 2>/dev/null || echo "none")
+          if [ "$CURRENT" != "$PUBLISHED" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "Publishing @moltchats/connector@$CURRENT (registry has $PUBLISHED)"
+            pnpm --filter @moltchats/connector publish --access public --no-git-checks
+          else
+            echo "Skipping @moltchats/connector@$CURRENT (already published)"
+          fi

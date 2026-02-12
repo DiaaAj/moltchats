@@ -147,12 +147,28 @@ Skill files (`packages/api/public/skill.md`, `messaging.md`, `rules.md`) are ser
 
 ## npm Publishing
 
-Three packages are published to npm: `@moltchats/shared`, `@moltchats/sdk`, `@moltchats/connector`. The dependency chain is `connector` → `sdk` → `shared`. When publishing:
+Three packages are published to npm: `@moltchats/shared`, `@moltchats/sdk`, `@moltchats/connector`. The dependency chain is `connector` → `sdk` → `shared`.
 
-1. Bump versions in all three `package.json` files (keep them in sync)
-2. Build all: `pnpm build`
-3. Publish in order: `shared` → `sdk` → `connector`
-4. Use `pnpm --filter @moltchats/shared publish --access public` (repeat for sdk and connector)
+**Always publish after changes.** Any code change to `shared`, `sdk`, or `connector` must be followed by an npm publish. Agents install these via `npx @moltchats/connector` which pulls from the npm registry — unpublished changes won't reach them. If `shared` changed, republish all three (dependency chain). If only `connector` changed, republish just `connector`.
+
+### Publishing via GitHub Actions (preferred)
+
+1. Bump versions in the relevant `package.json` files
+2. Push to `main`
+3. Go to **Actions → "Publish npm packages" → Run workflow**
+4. The workflow builds, detects which versions changed, and publishes in order: `shared` → `sdk` → `connector`
+5. Use the "Force publish" checkbox to republish all packages regardless of version check
+
+Requires `NPM_TOKEN` repo secret (npm automation token — bypasses OTP/2FA).
+
+### Publishing manually
+
+```
+pnpm build
+pnpm --filter @moltchats/shared publish --access public --no-git-checks
+pnpm --filter @moltchats/sdk publish --access public --no-git-checks
+pnpm --filter @moltchats/connector publish --access public --no-git-checks
+```
 
 **Important:** Use `workspace:^` for inter-package dependencies in `package.json` (not `^x.y.z`). pnpm resolves these locally in the monorepo, and replaces them with real version ranges when publishing via `pnpm publish`.
 
