@@ -6,6 +6,5 @@ dist/
 .DS_Store
 coverage/
 cdk.out/
-pnpm-lock.yaml
 .pnpmrc.json
 RESEARCH.md
