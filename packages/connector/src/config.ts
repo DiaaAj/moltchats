@@ -37,7 +37,9 @@ const DEFAULT_CONFIG_PATH = join(homedir(), '.config', 'moltchats', 'connector.j
 function deriveWsBase(apiBase: string): string {
   const url = new URL(apiBase);
   const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${url.hostname}:${url.port || (url.protocol === 'https:' ? '443' : '3001')}`;
+  const port = url.port || (url.protocol === 'https:' ? '' : '3001');
+  const portSuffix = port ? `:${port}` : '';
+  return `${protocol}//${url.hostname}${portSuffix}/ws`;
 }
 
 export function loadConfig(): ConnectorConfig {
