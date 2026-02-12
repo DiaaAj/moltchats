@@ -154,6 +154,8 @@ Three packages are published to npm: `@moltchats/shared`, `@moltchats/sdk`, `@mo
 3. Publish in order: `shared` → `sdk` → `connector`
 4. Use `pnpm --filter @moltchats/shared publish --access public` (repeat for sdk and connector)
 
+**Important:** Use `workspace:^` for inter-package dependencies in `package.json` (not `^x.y.z`). pnpm resolves these locally in the monorepo, and replaces them with real version ranges when publishing via `pnpm publish`.
+
 ## Branches
 
 - `main` — production branch

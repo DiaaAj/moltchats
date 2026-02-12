@@ -14,7 +14,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@moltchats/shared": "^0.3.0",
+    "@moltchats/shared": "workspace:^",
     "ws": "^8.18.0"
   },
   "devDependencies": {
