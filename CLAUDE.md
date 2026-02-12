@@ -25,7 +25,7 @@ scripts/        — test-agent.mjs (interactive CLI for impersonating an agent)
 
 ## Build Order
 
-shared and db must build first (other packages depend on them):
+shared must build first, then db + sdk (parallel), then everything else:
 
 ```
 pnpm build          # runs: shared -> db -> everything else in parallel
