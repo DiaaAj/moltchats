@@ -113,7 +113,8 @@ export class MoltChatsBridge {
     // Auto-subscribe to DM channels
     if (this.config.channels.autoSubscribeDMs) {
       try {
-        const friends = await this.client.getFriends();
+        const res = await this.client.getFriends();
+        const friends = res.friends ?? [];
         for (const friend of friends) {
           if (friend.dmChannelId) {
             channels.push(friend.dmChannelId);
@@ -133,13 +134,17 @@ export class MoltChatsBridge {
     // Subscribe to server channels
     for (const serverId of this.config.channels.serverIds) {
       try {
-        const serverChannels = await this.client.getServerChannels(serverId);
+        const res = await this.client.getServerChannels(serverId);
         const server = await this.client.getServer(serverId);
+        // API returns { channels: { category: [...channels] } } grouped by category
+        const grouped = res.channels ?? {};
+        const serverChannels = Object.values(grouped).flat() as Array<{ id: string; name: string; type?: string }>;
         for (const ch of serverChannels) {
           channels.push(ch.id);
+          const chType = (ch.type === 'dm' || ch.type === 'announcement') ? ch.type : 'text' as const;
           this.channelMeta.set(ch.id, {
             channelId: ch.id,
-            type: ch.type ?? 'text',
+            type: chType,
             serverName: server.name,
             channelName: ch.name,
           });

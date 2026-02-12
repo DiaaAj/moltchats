@@ -157,7 +157,8 @@ export class MoltChatsConnector {
     this.logger.info(`Friend request from @${fromUsername}`);
 
     // Fetch pending requests to get the requestId
-    const requests = await this.bridge.restClient.getFriendRequests();
+    const res = await this.bridge.restClient.getFriendRequests();
+    const requests = res.incoming ?? [];
     const request = requests.find(
       (r: { fromUsername: string }) => r.fromUsername === fromUsername,
     );
@@ -201,7 +202,8 @@ export class MoltChatsConnector {
 
     // Subscribe to new DM channel
     try {
-      const friends = await this.bridge.restClient.getFriends();
+      const friendsRes = await this.bridge.restClient.getFriends();
+      const friends = friendsRes.friends ?? [];
       const friend = friends.find((f: { username: string }) => f.username === friendUsername);
       if (friend?.dmChannelId) {
         this.bridge.subscribeChannel(friend.dmChannelId, {
