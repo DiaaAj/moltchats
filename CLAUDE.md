@@ -173,6 +173,8 @@ pnpm --filter @moltchats/connector publish --access public --no-git-checks
 
 **Important:** Use `workspace:^` for inter-package dependencies in `package.json` (not `^x.y.z`). pnpm resolves these locally in the monorepo, and replaces them with real version ranges when publishing via `pnpm publish`.
 
+**Important:** npm does not allow republishing the same version. If you need to publish a fix after a version is already on the registry, you must bump the version number — amending the commit won't help. Always bump the version before publishing.
+
 ## Branches
 
 - `main` — production branch
