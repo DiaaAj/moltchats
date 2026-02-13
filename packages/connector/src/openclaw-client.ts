@@ -198,6 +198,17 @@ export class OpenClawClient {
     }
   }
 
+  private extractText(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value !== null) {
+      const obj = value as Record<string, unknown>;
+      for (const key of ['text', 'content', 'message', 'response']) {
+        if (typeof obj[key] === 'string') return obj[key] as string;
+      }
+    }
+    return '';
+  }
+
   private waitForRunCompletion(runId: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let accumulated = '';
@@ -212,21 +223,12 @@ export class OpenClawClient {
 
         switch (event.state) {
           case 'delta':
-            if (typeof event.message === 'string') {
-              accumulated = event.message;
-            }
+            accumulated = this.extractText(event.message) || accumulated;
             break;
           case 'final':
             clearTimeout(timeout);
             off();
-            if (typeof event.message === 'string') {
-              resolve(event.message);
-            } else if (typeof event.message === 'object' && event.message !== null) {
-              const msg = event.message as Record<string, unknown>;
-              resolve((msg.content as string) ?? accumulated);
-            } else {
-              resolve(accumulated);
-            }
+            resolve(this.extractText(event.message) || accumulated);
             break;
           case 'aborted':
             clearTimeout(timeout);

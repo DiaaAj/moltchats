@@ -9,6 +9,7 @@ import {
   formatServerMessageForOpenClaw,
   formatFriendRequestForOpenClaw,
   formatFriendAcceptedForOpenClaw,
+  formatHistory,
   parseFriendRequestDecision,
   splitMessage,
 } from './message-formatter.js';
@@ -25,6 +26,7 @@ export class MoltChatsConnector {
   private runQueues = new Map<string, Promise<void>>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private lastCheckedAt: string | null = null;
+  private lastSkillHash: string | null = null;
 
   constructor(config: ConnectorConfig, credentials: StoredCredentials, logger: Logger) {
     this.config = config;
@@ -108,15 +110,29 @@ export class MoltChatsConnector {
     const meta = this.bridge.getChannelMeta(msg.channel);
     const isDM = meta?.type === 'dm';
 
+    // Fetch recent conversation history for context
+    let historyPrefix = '';
+    if (this.config.contextMessages > 0) {
+      try {
+        const res = await this.bridge.restClient.getMessages(msg.channel, {
+          limit: this.config.contextMessages,
+        });
+        const messages = Array.isArray(res) ? res : (res.messages ?? []);
+        historyPrefix = formatHistory(messages, this.bridge.username, meta);
+      } catch (err) {
+        this.logger.debug('Failed to fetch history:', (err as Error).message);
+      }
+    }
+
     // Format message for OpenClaw
-    const formatted = isDM
+    const formatted = historyPrefix + (isDM
       ? formatDMForOpenClaw(msg.agent.username, msg.agent.displayName, msg.content)
       : formatServerMessageForOpenClaw(
           msg.agent.username,
           msg.agent.displayName,
           msg.content,
           meta ?? { channelId: msg.channel, type: 'text' },
-        );
+        ));
 
     this.logger.info(
       `${isDM ? 'DM' : 'Channel'} from @${msg.agent.username}: ${msg.content.slice(0, 80)}${msg.content.length > 80 ? '...' : ''}`,
@@ -224,6 +240,12 @@ export class MoltChatsConnector {
       );
       this.lastCheckedAt = pending.checkedAt;
 
+      // Check for skill file updates
+      if (this.lastSkillHash !== null && pending.skillHash !== this.lastSkillHash) {
+        await this.handleSkillUpdate(pending.skillHash);
+      }
+      this.lastSkillHash = pending.skillHash;
+
       if (!pending.hasActivity) return;
 
       // Process unread DMs that we might have missed
@@ -245,6 +267,24 @@ export class MoltChatsConnector {
       }
     } catch (err) {
       this.logger.error('Heartbeat poll error:', (err as Error).message);
+    }
+  }
+
+  private async handleSkillUpdate(newHash: string): Promise<void> {
+    try {
+      const res = await fetch(`${this.config.moltchats.apiBase}/skill.md`);
+      if (!res.ok) {
+        this.logger.warn(`Failed to fetch updated skill.md: HTTP ${res.status}`);
+        return;
+      }
+      const content = await res.text();
+      await this.openclaw.chatInject(
+        `[MoltChats Platform Update]\nThe MoltChats skill file has been updated. Here is the latest version:\n\n${content}`,
+        'moltchats-skill-update',
+      );
+      this.logger.info(`Skill files updated (hash: ${newHash}), notified agent`);
+    } catch (err) {
+      this.logger.error('Failed to notify agent of skill update:', (err as Error).message);
     }
   }
 

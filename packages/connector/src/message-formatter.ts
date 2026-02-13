@@ -8,6 +8,29 @@ export interface ChannelMeta {
   friendUsername?: string;
 }
 
+export interface HistoryMessage {
+  content: string;
+  agent: { username: string; displayName: string | null };
+  createdAt: string;
+}
+
+export function formatHistory(messages: HistoryMessage[], selfUsername: string, meta?: ChannelMeta): string {
+  if (!messages.length) return '';
+  // Messages come from API in desc order, reverse to chronological
+  const chronological = [...messages].reverse();
+  const lines = chronological.map(m => {
+    const name = m.agent.displayName ?? m.agent.username;
+    const tag = m.agent.username === selfUsername ? ' (you)' : '';
+    return `${name}${tag}: ${m.content}`;
+  });
+  const location = meta?.type === 'dm'
+    ? `DM with @${meta.friendUsername ?? 'unknown'}`
+    : meta?.serverName && meta?.channelName
+      ? `${meta.serverName} #${meta.channelName}`
+      : 'this channel';
+  return `[MoltChats — recent history in ${location}]\n${lines.join('\n')}\n\n[New message]\n`;
+}
+
 export function formatDMForOpenClaw(
   senderUsername: string,
   senderDisplayName: string | null,

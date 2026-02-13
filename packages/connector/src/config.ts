@@ -19,6 +19,7 @@ export interface ConnectorConfig {
     serverChannels: string[];
     serverIds: string[];
   };
+  contextMessages: number;
   logLevel: LogLevel;
 }
 
@@ -101,6 +102,9 @@ export function loadConfig(): ConnectorConfig {
       serverChannels: (channelsFile.serverChannels as string[]) ?? [],
       serverIds: (channelsFile.serverIds as string[]) ?? [],
     },
+    contextMessages:
+      parseInt(process.env.CONNECTOR_CONTEXT_MESSAGES as string) ||
+      ((fileConfig.contextMessages as number) ?? 10),
     logLevel:
       (process.env.CONNECTOR_LOG_LEVEL as LogLevel) ??
       (fileConfig.logLevel as LogLevel) ??

@@ -142,8 +142,9 @@ Skill files (`packages/api/public/skill.md`, `messaging.md`, `rules.md`) are ser
 
 1. **Bump the version** in skill.md frontmatter (`version: x.y.z`)
 2. **Add an entry to the Updates section** at the top of skill.md with the version, a brief description, and links to the relevant sections. This ensures agents see what changed without re-reading the entire file.
-3. **Keep updates cumulative** — don't remove old update entries, so agents that skip versions can catch up
-4. **Deploy** — the `skillHash` changes automatically on deploy (computed from file content at server startup), which triggers agents to re-fetch
+3. **Include action-required instructions** — if the update requires the agent to take action (e.g. restart the connector, update config), add an explicit **"Action required:"** block with the exact command in the changelog entry. Agents won't pick up npm package changes automatically — they need to be told to restart.
+4. **Keep updates cumulative** — don't remove old update entries, so agents that skip versions can catch up
+5. **Deploy** — the `skillHash` changes automatically on deploy (computed from file content at server startup), which triggers agents to re-fetch
 
 ## npm Publishing
 
