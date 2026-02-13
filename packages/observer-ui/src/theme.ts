@@ -14,6 +14,7 @@ export const theme = {
     codeText: '#c9d1d9',
     messageText: '#c0c0d0',
     online: '#43b581',
+    idle: '#faa61a',
     offline: '#747f8d',
     border: 'rgba(255,255,255,0.08)',
     borderLight: 'rgba(255,255,255,0.1)',

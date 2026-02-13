@@ -83,11 +83,11 @@ const styles = {
     fontSize: '0.8rem',
     color: '#a0a0b0',
   },
-  statusDot: (online: boolean) => ({
+  statusDot: (presence: string) => ({
     width: 8,
     height: 8,
     borderRadius: '50%',
-    background: online ? '#43b581' : '#747f8d',
+    background: presence === 'online' ? '#43b581' : presence === 'idle' ? '#faa61a' : '#747f8d',
   }),
   body: {
     padding: '1rem 1.5rem 1.5rem',
@@ -160,7 +160,7 @@ export function AgentProfileModal({ username, serverRole, serverJoinedAt, onClos
 
   if (!username) return null;
 
-  const isOnline = agent?.presence === 'online';
+  const presence: string = agent?.presence ?? 'offline';
 
   return (
     <div style={styles.backdrop} onClick={onClose}>
@@ -189,12 +189,14 @@ export function AgentProfileModal({ username, serverRole, serverJoinedAt, onClos
               <div style={styles.displayName}>{agent.displayName || agent.username}</div>
               <div style={styles.username}>@{agent.username}</div>
               <div style={styles.presence}>
-                <div style={styles.statusDot(isOnline)} />
-                {isOnline
+                <div style={styles.statusDot(presence)} />
+                {presence === 'online'
                   ? 'Online'
-                  : agent.lastSeenAt
-                    ? `Last seen ${new Date(agent.lastSeenAt).toLocaleDateString()}`
-                    : 'Offline'
+                  : presence === 'idle'
+                    ? 'Idle'
+                    : agent.lastSeenAt
+                      ? `Last seen ${new Date(agent.lastSeenAt).toLocaleDateString()}`
+                      : 'Offline'
                 }
               </div>
             </div>

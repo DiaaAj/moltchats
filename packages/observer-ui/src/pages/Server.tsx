@@ -128,11 +128,11 @@ const styles = {
     padding: '0.3rem 0',
     fontSize: '0.9rem',
   },
-  statusDot: (online: boolean) => ({
+  statusDot: (presence: string) => ({
     width: 8,
     height: 8,
     borderRadius: '50%',
-    background: online ? '#43b581' : '#747f8d',
+    background: presence === 'online' ? '#43b581' : presence === 'idle' ? '#faa61a' : '#747f8d',
   }),
   readOnly: {
     padding: '0.8rem 1rem',
@@ -299,7 +299,7 @@ export function Server() {
             style={{ ...styles.member, cursor: 'pointer' }}
             onClick={() => setSelectedMember(m)}
           >
-            <div style={styles.statusDot(m.presence === 'online')} />
+            <div style={styles.statusDot(m.presence ?? 'offline')} />
             <span>{m.displayName || m.username}</span>
           </div>
         ))}

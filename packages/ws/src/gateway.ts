@@ -27,6 +27,7 @@ interface ClientMeta {
   disconnectTimer: ReturnType<typeof setTimeout> | null;
   idleTimeoutMs: number;
   lastOutboundAction: number;
+  presenceState: 'online' | 'idle';
 }
 
 export class WebSocketGateway {
@@ -149,6 +150,7 @@ export class WebSocketGateway {
       disconnectTimer: null,
       idleTimeoutMs,
       lastOutboundAction: Date.now(),
+      presenceState: 'online',
     };
 
     this.meta.set(ws, meta);
@@ -168,8 +170,8 @@ export class WebSocketGateway {
       this.pubsub,
     );
 
-    // --- Start idle timers ---
-    this.resetIdleTimers(ws, meta);
+    // --- Start idle + disconnect timers ---
+    this.resetActivityTimers(ws, meta);
 
     // --- Ready: drain any messages that arrived during setup ---
     ready = true;
@@ -198,7 +200,7 @@ export class WebSocketGateway {
       switch (msg.op) {
         case 'ping':
           this.send(ws, { op: 'pong' });
-          this.resetIdleTimers(ws, meta);
+          this.resetDisconnectTimer(ws, meta);
           break;
 
         case 'subscribe':
@@ -286,7 +288,7 @@ export class WebSocketGateway {
 
     // Track outbound action for idle timeout
     meta.lastOutboundAction = Date.now();
-    this.resetIdleTimers(ws, meta);
+    this.resetActivityTimers(ws, meta);
 
     const { ack, broadcast } = await handleMessage(
       { channelId, agentId: meta.agentId, content, contentType },
@@ -306,7 +308,7 @@ export class WebSocketGateway {
     if (!meta.channels.has(channelId)) return;
 
     meta.lastOutboundAction = Date.now();
-    this.resetIdleTimers(
+    this.resetActivityTimers(
       // Find any socket for this agent to reset timers
       this.clients.get(meta.agentId)?.values().next().value!,
       meta,
@@ -363,23 +365,10 @@ export class WebSocketGateway {
   // Idle timeout management
   // ---------------------------------------------------------------------------
 
-  private resetIdleTimers(ws: WebSocket, meta: ClientMeta): void {
-    if (meta.idleTimer) clearTimeout(meta.idleTimer);
+  /** Resets only the disconnect timer (keepalive). Called on ping, message, typing. */
+  private resetDisconnectTimer(_ws: WebSocket, meta: ClientMeta): void {
     if (meta.disconnectTimer) clearTimeout(meta.disconnectTimer);
 
-    // After half the idle timeout, set presence to 'idle'
-    meta.idleTimer = setTimeout(async () => {
-      await updatePresence(
-        meta.agentId,
-        'idle',
-        meta.channels,
-        this.channelSubs,
-        this.db,
-        this.pubsub,
-      );
-    }, meta.idleTimeoutMs / 2);
-
-    // After the full idle timeout, disconnect the agent
     meta.disconnectTimer = setTimeout(() => {
       const sockets = this.clients.get(meta.agentId);
       if (sockets) {
@@ -389,6 +378,38 @@ export class WebSocketGateway {
         }
       }
     }, meta.idleTimeoutMs);
+  }
+
+  /** Resets idle + disconnect timers and restores 'online' if idle. Called on message, typing. */
+  private resetActivityTimers(ws: WebSocket, meta: ClientMeta): void {
+    if (meta.idleTimer) clearTimeout(meta.idleTimer);
+    this.resetDisconnectTimer(ws, meta);
+
+    // Restore online if currently idle
+    if (meta.presenceState === 'idle') {
+      meta.presenceState = 'online';
+      updatePresence(
+        meta.agentId,
+        'online',
+        meta.channels,
+        this.channelSubs,
+        this.db,
+        this.pubsub,
+      );
+    }
+
+    // After half the idle timeout, transition to 'idle'
+    meta.idleTimer = setTimeout(async () => {
+      meta.presenceState = 'idle';
+      await updatePresence(
+        meta.agentId,
+        'idle',
+        meta.channels,
+        this.channelSubs,
+        this.db,
+        this.pubsub,
+      );
+    }, meta.idleTimeoutMs / 2);
   }
 
   // ---------------------------------------------------------------------------
