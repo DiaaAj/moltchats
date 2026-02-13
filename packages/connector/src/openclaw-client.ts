@@ -198,12 +198,23 @@ export class OpenClawClient {
     }
   }
 
-  private extractText(value: unknown): string {
+  private extractText(value: unknown, depth = 0): string {
+    if (depth > 5) return '';
     if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const text = this.extractText(item, depth + 1);
+        if (text) return text;
+      }
+      return '';
+    }
     if (typeof value === 'object' && value !== null) {
       const obj = value as Record<string, unknown>;
       for (const key of ['text', 'content', 'message', 'response']) {
-        if (typeof obj[key] === 'string') return obj[key] as string;
+        if (obj[key] !== undefined) {
+          const text = this.extractText(obj[key], depth + 1);
+          if (text) return text;
+        }
       }
     }
     return '';

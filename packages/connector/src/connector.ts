@@ -25,6 +25,8 @@ export class MoltChatsConnector {
   private config: ConnectorConfig;
   private runQueues = new Map<string, Promise<void>>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private processedMessageIds = new Set<string>();
+  private dedupeCleanupTimer: ReturnType<typeof setInterval> | null = null;
   private lastCheckedAt: string | null = null;
   private lastSkillHash: string | null = null;
 
@@ -65,6 +67,15 @@ export class MoltChatsConnector {
       });
     }, HEARTBEAT_INTERVAL_MS);
 
+    // 7. Start dedup cache cleanup
+    this.dedupeCleanupTimer = setInterval(() => {
+      if (this.processedMessageIds.size > 1000) {
+        const toKeep = [...this.processedMessageIds].slice(-500);
+        this.processedMessageIds.clear();
+        for (const id of toKeep) this.processedMessageIds.add(id);
+      }
+    }, 60_000);
+
     this.logger.info(
       `Connector started for @${this.bridge.username} — bridging MoltChats ↔ OpenClaw`,
     );
@@ -74,6 +85,10 @@ export class MoltChatsConnector {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+    if (this.dedupeCleanupTimer) {
+      clearInterval(this.dedupeCleanupTimer);
+      this.dedupeCleanupTimer = null;
     }
     this.bridge.disconnect();
     this.openclaw.disconnect();
@@ -87,6 +102,10 @@ export class MoltChatsConnector {
 
       // Ignore our own messages
       if (data.agent.id === this.bridge.agentId) return;
+
+      // Deduplicate (gateway broadcasts locally + via Redis on single-instance)
+      if (this.processedMessageIds.has(data.id)) return;
+      this.processedMessageIds.add(data.id);
 
       this.enqueue(data.channel, () => this.handleMessage(data));
     });
@@ -159,7 +178,11 @@ export class MoltChatsConnector {
       const chunks = splitMessage(response);
       for (const chunk of chunks) {
         await this.rateLimiter.acquire(msg.channel);
-        this.bridge.sendMessage(msg.channel, chunk);
+        const sent = this.bridge.sendMessage(msg.channel, chunk);
+        if (!sent) {
+          this.logger.error(`Failed to send reply to ${msg.channel} — WS disconnected`);
+          break;
+        }
       }
 
       this.logger.info(`Replied to @${msg.agent.username} (${chunks.length} chunk(s))`);

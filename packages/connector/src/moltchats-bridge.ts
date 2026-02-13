@@ -24,6 +24,7 @@ export class MoltChatsBridge {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnecting = false;
   private closed = false;
 
   constructor(config: ConnectorConfig, credentials: StoredCredentials, logger: Logger) {
@@ -83,6 +84,11 @@ export class MoltChatsBridge {
 
   async connectWs(): Promise<void> {
     this.closed = false;
+    // Tear down previous WS instance to avoid stacking event handlers
+    if (this.ws) {
+      this.ws.disconnect();
+      this.ws = null;
+    }
     const token = this.credentials.token!;
     this.ws = new MoltChatsWs({
       url: this.config.moltchats.wsBase,
@@ -100,6 +106,11 @@ export class MoltChatsBridge {
         this.logger.warn('MoltChats WS max reconnect reached, handling manually');
         this.handleDisconnect();
       }
+    });
+
+    this.ws.on('close', () => {
+      this.logger.warn('MoltChats WS connection closed unexpectedly');
+      this.handleDisconnect();
     });
 
     await this.ws.connect();
@@ -172,8 +183,13 @@ export class MoltChatsBridge {
     this.logger.debug(`Subscribed to channel ${channelId}`);
   }
 
-  sendMessage(channelId: string, content: string): void {
-    this.ws?.sendMessage(channelId, content);
+  sendMessage(channelId: string, content: string): boolean {
+    if (!this.ws?.connected) {
+      this.logger.warn(`Cannot send message to ${channelId}: WebSocket not connected`);
+      return false;
+    }
+    this.ws.sendMessage(channelId, content);
+    return true;
   }
 
   sendTyping(channelId: string): void {
@@ -190,6 +206,7 @@ export class MoltChatsBridge {
 
   disconnect(): void {
     this.closed = true;
+    this.reconnecting = false;
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -208,9 +225,11 @@ export class MoltChatsBridge {
   }
 
   private async handleDisconnect(): Promise<void> {
-    if (this.closed) return;
+    if (this.closed || this.reconnecting) return;
+    this.reconnecting = true;
 
     if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      this.reconnecting = false;
       this.logger.error('Max MoltChats reconnect attempts reached');
       return;
     }
@@ -231,8 +250,10 @@ export class MoltChatsBridge {
         if (this.subscribedChannels.size > 0) {
           this.ws!.subscribe([...this.subscribedChannels]);
         }
+        this.reconnecting = false;
       } catch (err) {
         this.logger.error('MoltChats reconnect failed:', (err as Error).message);
+        this.reconnecting = false;
         this.handleDisconnect();
       }
     }, delay);
@@ -257,17 +278,18 @@ export class MoltChatsBridge {
           const auth = await this.client.refreshToken(this.credentials.refreshToken);
           this.updateCredentials(auth.token, auth.refreshToken);
           this.logger.info('Token refreshed proactively');
-          this.scheduleTokenRefresh(auth.token);
 
           // Reconnect WS with new token
-          this.ws?.disconnect();
           await this.connectWs();
           if (this.subscribedChannels.size > 0) {
             this.ws!.subscribe([...this.subscribedChannels]);
           }
+
+          // Schedule next refresh only after successful reconnect
+          this.scheduleTokenRefresh(auth.token);
         } catch (err) {
           this.logger.error('Proactive token refresh failed:', (err as Error).message);
-          // Will be caught on next WS reconnect
+          this.handleDisconnect();
         }
       }, delay);
     } catch {

@@ -45,8 +45,15 @@ export class MoltChatsWs {
 
       this.ws.on('close', () => {
         this.stopPing();
-        if (!this.closed && this.options.autoReconnect) {
-          this.scheduleReconnect();
+        if (!this.closed) {
+          this.emit('close', {
+            op: 'error',
+            code: 'CONNECTION_CLOSED',
+            message: 'WebSocket closed unexpectedly',
+          } as WsServerOp);
+          if (this.options.autoReconnect) {
+            this.scheduleReconnect();
+          }
         }
       });
 
