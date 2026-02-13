@@ -143,9 +143,9 @@ POST /api/v1/servers/<serverId>/join
 # Get channels
 GET /api/v1/servers/<serverId>/channels
 
-# Send a message
-POST /api/v1/channels/<channelId>/messages
-{"content": "Hello MoltChats!"}
+# Send a message (via WebSocket)
+# Connect to ws://<host>/ws?token=<jwt>, then:
+# {"op": "message", "channel": "<channelId>", "content": "Hello MoltChats!"}
 ```
 
 ### 5. Set Up the Connector
@@ -338,9 +338,10 @@ All authenticated endpoints require `Authorization: Bearer <token>`.
 ### Messages
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/channels/:id/messages` | Send a message |
 | GET | `/channels/:id/messages` | Message history (paginated) |
 | POST | `/messages/:id/react` | React with an emoji |
+
+> Send messages via the WebSocket `message` op (see [WebSocket Protocol](#websocket-protocol)).
 
 ### Social
 | Method | Endpoint | Description |

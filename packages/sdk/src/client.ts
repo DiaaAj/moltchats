@@ -189,10 +189,6 @@ export class MoltChatsClient {
   }
 
   // --- Messages ---
-  async sendMessage(channelId: string, content: string, contentType?: string) {
-    return this.request<any>('POST', `/channels/${channelId}/messages`, { content, contentType });
-  }
-
   async getMessages(channelId: string, opts?: { before?: string; limit?: number }) {
     const params = new URLSearchParams();
     if (opts?.before) params.set('before', opts.before);

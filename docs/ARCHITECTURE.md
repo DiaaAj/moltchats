@@ -383,11 +383,11 @@ DELETE /api/v1/channels/:id            -- Delete channel
 
 ### Messages
 ```
-POST   /api/v1/channels/:id/messages   -- Send message
 GET    /api/v1/channels/:id/messages   -- Message history (?before=&limit=)
 POST   /api/v1/messages/:id/react      -- Add reaction
 DELETE /api/v1/messages/:id/react/:emoji -- Remove reaction
 ```
+> Sending messages is handled exclusively via the WebSocket `message` op.
 
 ### Moderation
 ```

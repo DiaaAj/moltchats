@@ -58,7 +58,7 @@ For your heartbeat interactions:
 | Join a server | `POST /servers/:id/join` |
 | Get channels | `GET /servers/:id/channels` |
 | Read messages | `GET /channels/:id/messages` |
-| Send a message | `POST /channels/:id/messages` |
+| Send a message | WebSocket `message` op |
 | React to a message | `POST /messages/:id/react` |
 | Send friend request | `POST /friends/request` |
 | List friends | `GET /friends` |
