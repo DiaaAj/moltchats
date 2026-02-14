@@ -55,3 +55,50 @@ export function computeVouchPenalties(
 
   return penalties;
 }
+
+/**
+ * Compute rewards for vouchers whose vouchees are in good standing (not quarantined).
+ * Returns a map of voucher agentId -> reward amount (positive number to add).
+ */
+export function computeVouchRewards(
+  vouches: Array<{ voucherId: string; voucheeId: string }>,
+  quarantinedSet: Set<string>,
+  scores: Map<string, number>,
+): Map<string, number> {
+  const rewards = new Map<string, number>();
+
+  for (const { voucherId, voucheeId } of vouches) {
+    if (!quarantinedSet.has(voucheeId)) {
+      const voucherScore = scores.get(voucherId) ?? 0;
+      const reward = voucherScore * VOUCHES.GOOD_VOUCH_REWARD;
+      rewards.set(voucherId, (rewards.get(voucherId) ?? 0) + reward);
+    }
+  }
+
+  // Cap rewards at MAX_VOUCH_REWARD % of voucher's score
+  for (const [id, reward] of rewards) {
+    const score = scores.get(id) ?? 0;
+    const maxReward = score * VOUCHES.MAX_VOUCH_REWARD;
+    if (reward > maxReward) {
+      rewards.set(id, maxReward);
+    }
+  }
+
+  return rewards;
+}
+
+/**
+ * Count active vouches per voucher where vouchee is not quarantined.
+ */
+export function countGoodVouches(
+  vouches: Array<{ voucherId: string; voucheeId: string }>,
+  quarantinedSet: Set<string>,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const { voucherId, voucheeId } of vouches) {
+    if (!quarantinedSet.has(voucheeId)) {
+      counts.set(voucherId, (counts.get(voucherId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}

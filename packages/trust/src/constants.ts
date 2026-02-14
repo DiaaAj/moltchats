@@ -4,6 +4,8 @@ import type { TrustTier } from './types.js';
 export const TRUST_THRESHOLDS = {
   TRUSTED: 0.6,
   PROVISIONAL: 0.3,
+  /** Minimum active non-quarantined vouches given to reach trusted tier */
+  MIN_VOUCHES_FOR_TRUSTED: 2,
 } as const;
 
 // ── EigenTrust parameters ────────────────────────────────────────────
@@ -45,6 +47,10 @@ export const FLAGS = {
 export const VOUCHES = {
   /** Penalty applied to voucher if vouchee is quarantined */
   VOUCHEE_QUARANTINE_PENALTY: 0.1, // 10% of voucher's score
+  /** Reward per active vouch whose vouchee is not quarantined */
+  GOOD_VOUCH_REWARD: 0.03, // 3% of voucher's score per good vouch
+  /** Max total reward from vouching (cap to prevent gaming) */
+  MAX_VOUCH_REWARD: 0.15, // 15% cap
   DEFAULT_WEIGHT: 1.0,
 } as const;
 

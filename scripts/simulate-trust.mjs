@@ -14,7 +14,7 @@ import { buildTrustMatrix, computeEigenTrust } from '../packages/trust/dist/eige
 import { detectSybilClusters } from '../packages/trust/dist/sybil.js';
 import { computeQuarantineSet } from '../packages/trust/dist/flags.js';
 import { assignTier } from '../packages/trust/dist/tiers.js';
-import { computeVouchPenalties } from '../packages/trust/dist/vouches.js';
+import { computeVouchPenalties, computeVouchRewards, countGoodVouches } from '../packages/trust/dist/vouches.js';
 
 // ── Agent setup ─────────────────────────────────────────────────────
 const SEEDS = ['seed-alpha', 'seed-beta', 'seed-gamma'];
@@ -162,17 +162,29 @@ const quarantinedSet = computeQuarantineSet(flags);
 console.log('\n─── Flag Consensus ───');
 console.log(`  Quarantined agents: ${[...quarantinedSet].join(', ') || '(none)'}`);
 
-// ── Compute vouch penalties ─────────────────────────────────────────
+// ── Compute vouch penalties & rewards ──────────────────────────────
 const vouches = [];
+// Honest agents vouched for neighbors (same as interactions above)
+for (let i = 0; i < HONEST.length; i += 2) {
+  vouches.push({ voucherId: HONEST[i], voucheeId: HONEST[(i + 1) % HONEST.length] });
+}
+// Sybils vouched for each other
 for (let i = 0; i < SYBILS.length; i++) {
   vouches.push({ voucherId: SYBILS[i], voucheeId: SYBILS[(i + 1) % SYBILS.length] });
 }
 
 const vouchPenalties = computeVouchPenalties(vouches, quarantinedSet, scoreMap);
+const vouchRewards = computeVouchRewards(vouches, quarantinedSet, scoreMap);
+const goodVouchCounts = countGoodVouches(vouches, quarantinedSet);
 
 console.log('\n─── Vouch Penalties ───');
 for (const [agentId, penalty] of vouchPenalties) {
   console.log(`  ${agentId.padEnd(15)} penalty: ${penalty.toFixed(4)}`);
+}
+
+console.log('\n─── Vouch Rewards ───');
+for (const [agentId, reward] of vouchRewards) {
+  console.log(`  ${agentId.padEnd(15)} reward: ${reward.toFixed(4)}  (good vouches: ${goodVouchCounts.get(agentId) ?? 0})`);
 }
 
 // ── Compute final scores and assign tiers ───────────────────────────
@@ -191,9 +203,13 @@ for (let i = 0; i < ALL_AGENTS.length; i++) {
   // Subtract vouch penalty
   score = Math.max(0, score - (vouchPenalties.get(agentId) ?? 0));
 
+  // Add vouch reward
+  score = Math.min(1, score + (vouchRewards.get(agentId) ?? 0));
+
   const isSeed = seedSet.has(agentId);
   const isQuarantined = quarantinedSet.has(agentId);
-  const tier = assignTier(score, isQuarantined, isSeed);
+  const goodVouches = goodVouchCounts.get(agentId) ?? 0;
+  const tier = assignTier(score, isQuarantined, isSeed, goodVouches);
 
   tierCounts[tier]++;
   results.set(agentId, { score, tier });
@@ -220,6 +236,15 @@ for (const honest of HONEST) {
   );
 }
 console.log('  [PASS] Honest agents are trusted/provisional');
+
+// Honest agents who vouch (every other one: honest-1, honest-3, ...) should benefit
+// Agents who DON'T vouch can't reach trusted even with high scores
+const nonVouchingHonest = HONEST.filter((_, i) => i % 2 !== 0); // odd-indexed
+for (const agent of nonVouchingHonest) {
+  const tier = results.get(agent).tier;
+  assert.equal(tier, 'provisional', `${agent} (no vouches) should be provisional, got ${tier}`);
+}
+console.log('  [PASS] Non-vouching honest agents stay provisional (vouch requirement)');
 
 // Sybil agents (except sybil-1 who is quarantined) should be untrusted
 // Their EigenTrust scores should be lower than honest agents due to no seed connectivity

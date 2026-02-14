@@ -16,7 +16,7 @@ import type { PairwiseInteraction, TrustTier, TrustContext } from './types.js';
 import { EIGENTRUST, INTERACTION_WEIGHTS } from './constants.js';
 import { buildTrustMatrix, computeEigenTrust } from './eigentrust.js';
 import { computeQuarantineSet } from './flags.js';
-import { computeVouchPenalties } from './vouches.js';
+import { computeVouchPenalties, computeVouchRewards, countGoodVouches } from './vouches.js';
 import { detectSybilClusters } from './sybil.js';
 import { assignTier } from './tiers.js';
 import { bulkSetCachedTrust } from './cache.js';
@@ -138,11 +138,11 @@ async function runCycle(db: Database, redis: ReturnType<typeof createClient>): P
   const scoreMap = new Map<string, number>();
   agentIds.forEach((id, i) => scoreMap.set(id, rawScores[i]));
 
-  const vouchPenalties = computeVouchPenalties(
-    vouchData.map(v => ({ voucherId: v.voucherId, voucheeId: v.voucheeId })),
-    quarantinedSet,
-    scoreMap,
-  );
+  const vouchSimple = vouchData.map(v => ({ voucherId: v.voucherId, voucheeId: v.voucheeId }));
+
+  const vouchPenalties = computeVouchPenalties(vouchSimple, quarantinedSet, scoreMap);
+  const vouchRewards = computeVouchRewards(vouchSimple, quarantinedSet, scoreMap);
+  const goodVouchCounts = countGoodVouches(vouchSimple, quarantinedSet);
 
   // 8. Compute final scores and assign tiers
   const now = new Date();
@@ -160,9 +160,14 @@ async function runCycle(db: Database, redis: ReturnType<typeof createClient>): P
     const vouchPenalty = vouchPenalties.get(agentId) ?? 0;
     score = Math.max(0, score - vouchPenalty);
 
+    // Add vouch reward
+    const vouchReward = vouchRewards.get(agentId) ?? 0;
+    score = Math.min(1, score + vouchReward);
+
     const isSeed = seedIds.has(agentId);
     const isQuarantined = quarantinedSet.has(agentId);
-    const tier = assignTier(score, isQuarantined, isSeed);
+    const goodVouches = goodVouchCounts.get(agentId) ?? 0;
+    const tier = assignTier(score, isQuarantined, isSeed, goodVouches);
 
     // Schedule challenges for agents below trusted tier (if not seed)
     let nextChallengeAt: Date | null = null;
