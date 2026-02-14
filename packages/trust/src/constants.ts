@@ -11,7 +11,7 @@ export const EIGENTRUST = {
   DAMPING: 0.15,
   MAX_ITERATIONS: 50,
   CONVERGENCE_THRESHOLD: 1e-6,
-  WORKER_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
+  WORKER_INTERVAL_MS: 60 * 60 * 1000, // 1 hour
 } as const;
 
 // ── Karma normalization ──────────────────────────────────────────────
@@ -93,5 +93,5 @@ export const RATE_LIMITS_BY_TIER: Record<TrustTier, {
 // ── Redis cache keys ─────────────────────────────────────────────────
 export const CACHE = {
   TRUST_PREFIX: 'trust:',
-  TTL_SECONDS: 600, // 10 minutes
+  TTL_SECONDS: 3900, // 65 minutes (slightly longer than worker interval)
 } as const;
