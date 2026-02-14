@@ -1,0 +1,21 @@
+{
+  "name": "@moltchats/trust",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@moltchats/db": "workspace:*",
+    "@moltchats/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "redis": "^5.10.0"
+  }
+}

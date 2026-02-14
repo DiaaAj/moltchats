@@ -7,14 +7,17 @@ import type { createClient } from 'redis';
 import type { Database } from '@moltchats/db';
 
 type RedisClient = ReturnType<typeof createClient>;
-import { agents, agentTokens, agentConfig } from '@moltchats/db';
-import type { JwtPayload, WsClientOp, WsServerOp, ContentType } from '@moltchats/shared';
+import { agents, agentTokens, agentConfig, agentTrustScores } from '@moltchats/db';
+import type { JwtPayload, WsClientOp, WsServerOp, ContentType, TrustTier } from '@moltchats/shared';
 import { AGENT } from '@moltchats/shared';
+import { RATE_LIMITS_BY_TIER, type TrustContext } from '@moltchats/trust';
+import { loadTrustContext } from '@moltchats/trust';
 import { RedisPubSub } from './redis-pubsub.js';
 import { handleMessage } from './handlers/message.js';
 import { handleSubscribe } from './handlers/subscribe.js';
 import { updatePresence, setOffline } from './handlers/presence.js';
 import { handleTyping } from './handlers/typing.js';
+import { handleVouch, handleVouchRevoke, handleFlag } from './handlers/trust.js';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 
@@ -28,6 +31,7 @@ interface ClientMeta {
   idleTimeoutMs: number;
   lastOutboundAction: number;
   presenceState: 'online' | 'idle';
+  trustTier: TrustTier;
 }
 
 export class WebSocketGateway {
@@ -141,6 +145,16 @@ export class WebSocketGateway {
 
     const idleTimeoutMs = (config?.idleTimeoutSeconds ?? AGENT.IDLE_TIMEOUT_DEFAULT) * 1000;
 
+    // --- Load trust context ---
+    const trustCtx = await loadTrustContext(this.db, this.pubsub.redis, payload.sub);
+
+    // Reject quarantined agents
+    if (trustCtx.tier === 'quarantined') {
+      this.send(ws, { op: 'quarantined', reason: 'Agent is quarantined' });
+      ws.close(4003, 'Agent is quarantined');
+      return;
+    }
+
     // --- Track the client ---
     const meta: ClientMeta = {
       agentId: payload.sub,
@@ -151,6 +165,7 @@ export class WebSocketGateway {
       idleTimeoutMs,
       lastOutboundAction: Date.now(),
       presenceState: 'online',
+      trustTier: trustCtx.tier as TrustTier,
     };
 
     this.meta.set(ws, meta);
@@ -217,6 +232,18 @@ export class WebSocketGateway {
 
         case 'typing':
           await this.onTyping(meta, msg.channel);
+          break;
+
+        case 'vouch':
+          await this.onTrustOp(ws, meta, msg);
+          break;
+
+        case 'vouch_revoke':
+          await this.onTrustOp(ws, meta, msg);
+          break;
+
+        case 'flag':
+          await this.onTrustOp(ws, meta, msg);
           break;
 
         default:
@@ -291,7 +318,7 @@ export class WebSocketGateway {
     this.resetActivityTimers(ws, meta);
 
     const { ack, broadcast } = await handleMessage(
-      { channelId, agentId: meta.agentId, content, contentType },
+      { channelId, agentId: meta.agentId, content, contentType, trustTier: meta.trustTier },
       this.db,
       this.pubsub.redis,
       this.pubsub,
@@ -301,7 +328,7 @@ export class WebSocketGateway {
     this.send(ws, ack);
 
     // Broadcast to local subscribers (except sender)
-    this.broadcastToChannel(channelId, broadcast, meta.agentId);
+    this.broadcastToChannel(channelId, broadcast as WsServerOp, meta.agentId);
   }
 
   private async onTyping(meta: ClientMeta, channelId: string): Promise<void> {
@@ -315,6 +342,33 @@ export class WebSocketGateway {
     );
 
     await handleTyping(channelId, meta.agentId, meta.username, this.pubsub);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trust operations
+  // ---------------------------------------------------------------------------
+
+  private async onTrustOp(ws: WebSocket, meta: ClientMeta, msg: WsClientOp): Promise<void> {
+    try {
+      let result;
+      switch (msg.op) {
+        case 'vouch':
+          result = await handleVouch(meta.agentId, meta.trustTier, msg.target, this.db);
+          break;
+        case 'vouch_revoke':
+          result = await handleVouchRevoke(meta.agentId, msg.target, this.db);
+          break;
+        case 'flag':
+          result = await handleFlag(meta.agentId, meta.trustTier, msg.target, msg.reason, this.db);
+          break;
+        default:
+          return;
+      }
+      this.send(ws, result.response as WsServerOp);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Trust operation failed';
+      this.sendError(ws, 'TRUST_ERROR', message);
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -16,8 +16,10 @@ import { moderationRoutes } from './routes/moderation.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { observerRoutes } from './routes/observers.js';
 import { feedRoutes } from './routes/feed.js';
+import { trustRoutes } from './routes/trust.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
+import { trustMiddleware } from '@moltchats/trust';
 import './types.js';
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgresql://moltchats:moltchats_dev@localhost:5432/moltchats';
@@ -41,6 +43,7 @@ async function start() {
   // Middleware
   app.decorate('authenticate', authMiddleware(db));
   app.decorate('rateLimit', rateLimitMiddleware(redis));
+  app.decorate('loadTrust', trustMiddleware(db, redis));
 
   // Allow empty bodies with application/json content-type (common with DELETE requests)
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
@@ -61,7 +64,7 @@ async function start() {
   // Serve skill files
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const publicDir = join(__dirname, '..', 'public');
-  for (const file of ['skill.md', 'heartbeat.md', 'messaging.md', 'rules.md']) {
+  for (const file of ['skill.md', 'heartbeat.md', 'messaging.md', 'rules.md', 'trust.md']) {
     app.get(`/${file}`, async (_request, reply) => {
       const content = readFileSync(join(publicDir, file), 'utf-8');
       reply.type('text/markdown; charset=utf-8').send(content);
@@ -80,6 +83,7 @@ async function start() {
   await app.register(webhookRoutes, { prefix: '/api/v1' });
   await app.register(observerRoutes, { prefix: '/api/v1' });
   await app.register(feedRoutes, { prefix: '/api/v1' });
+  await app.register(trustRoutes, { prefix: '/api/v1' });
 
   // Error handler
   app.setErrorHandler((error: Error, _request, reply) => {

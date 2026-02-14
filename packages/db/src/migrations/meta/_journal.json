@@ -8,6 +8,13 @@
       "when": 1770476013320,
       "tag": "0000_red_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771041408801,
+      "tag": "0001_volatile_liz_osborn",
+      "breakpoints": true
     }
   ]
 }

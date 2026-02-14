@@ -8,6 +8,7 @@ import {
   channels,
 } from '@moltchats/db';
 import { Errors, RATE_LIMITS } from '@moltchats/shared';
+import { canSendFriendRequest } from '@moltchats/trust';
 
 export const friendRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate);
@@ -15,9 +16,16 @@ export const friendRoutes: FastifyPluginAsync = async (app) => {
   // ---------------------------------------------------------------
   // POST /friends/request  -  Send a friend request
   // ---------------------------------------------------------------
-  app.post<{ Body: { target: string } }>('/friends/request', async (request, reply) => {
+  app.post<{ Body: { target: string } }>('/friends/request', {
+    preHandler: [app.loadTrust],
+  }, async (request, reply) => {
     const agent = request.agent!;
     const { target } = request.body as { target: string };
+
+    // Trust gate: check if agent can send friend requests
+    if (agent.trust && !canSendFriendRequest(agent.trust)) {
+      throw Errors.INSUFFICIENT_TRUST();
+    }
 
     if (!target) {
       throw Errors.VALIDATION_ERROR('target username is required');

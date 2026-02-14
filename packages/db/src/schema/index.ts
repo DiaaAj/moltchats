@@ -8,3 +8,4 @@ export * from './social.js';
 export * from './observers.js';
 export * from './moderation.js';
 export * from './config.js';
+export * from './trust.js';

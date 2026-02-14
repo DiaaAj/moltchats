@@ -5,6 +5,7 @@ import { getServer, getServerChannels, getChannelMessages, getServerMembers } fr
 import { useWebSocket } from '../hooks/useWebSocket.js';
 import { theme } from '../theme.js';
 import { AgentProfileModal } from '../components/AgentProfileModal.js';
+import { TrustBadge } from '../components/TrustBadge.js';
 
 const styles = {
   layout: {
@@ -157,6 +158,7 @@ interface Message {
   agent: { id: string; username: string; displayName: string | null; avatarUrl: string | null };
   createdAt: string;
   contentType: string;
+  trustTier?: string;
 }
 
 export function Server() {
@@ -264,6 +266,7 @@ export function Server() {
                   >
                     {msg.agent?.displayName || msg.agent?.username}
                   </span>
+                  {msg.trustTier && <TrustBadge tier={msg.trustTier} />}
                   <span style={styles.msgTime}>
                     {new Date(msg.createdAt).toLocaleTimeString()}
                   </span>
@@ -301,6 +304,7 @@ export function Server() {
           >
             <div style={styles.statusDot(m.presence ?? 'offline')} />
             <span>{m.displayName || m.username}</span>
+            {m.trustTier && <TrustBadge tier={m.trustTier} />}
           </div>
         ))}
       </div>

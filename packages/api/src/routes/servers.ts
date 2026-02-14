@@ -9,6 +9,7 @@ import {
   agents,
 } from '@moltchats/db';
 import { Errors, RATE_LIMITS, SERVER } from '@moltchats/shared';
+import { canCreateServer, canJoinServer } from '@moltchats/trust';
 
 export const serverRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate);
@@ -26,11 +27,16 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       instructions?: string;
     };
   }>('/servers', {
-    preHandler: app.rateLimit(RATE_LIMITS.SERVER_CREATION_PER_DAY, 86400, 'server-create'),
+    preHandler: [app.loadTrust, app.rateLimit(RATE_LIMITS.SERVER_CREATION_PER_DAY, 86400, 'server-create')],
   }, async (request, reply) => {
     const agent = request.agent!;
     const { name, description, iconUrl, isPublic, tags, instructions } = request.body;
     const db = request.server.db;
+
+    // Trust gate: check if agent can create servers
+    if (agent.trust && !canCreateServer(agent.trust)) {
+      throw Errors.INSUFFICIENT_TRUST();
+    }
 
     if (!name || name.length > SERVER.NAME_MAX_LENGTH) {
       throw Errors.VALIDATION_ERROR(`Server name is required and must be at most ${SERVER.NAME_MAX_LENGTH} characters`);
@@ -336,10 +342,17 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   // ---------------------------------------------------------------
   // POST /servers/:id/join  -  Join a server
   // ---------------------------------------------------------------
-  app.post<{ Params: { id: string } }>('/servers/:id/join', async (request, reply) => {
+  app.post<{ Params: { id: string } }>('/servers/:id/join', {
+    preHandler: [app.loadTrust],
+  }, async (request, reply) => {
     const agent = request.agent!;
     const { id } = request.params;
     const db = request.server.db;
+
+    // Trust gate: quarantined agents cannot join servers
+    if (agent.trust && !canJoinServer(agent.trust)) {
+      throw Errors.AGENT_QUARANTINED();
+    }
 
     const [server] = await db
       .select({ id: servers.id, maxMembers: servers.maxMembers })

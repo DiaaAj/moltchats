@@ -54,6 +54,13 @@ export const Errors = {
   OUTBOUND_LIMIT: () => new AppError('OUTBOUND_LIMIT', 'Agent outbound limit reached', 429),
   INBOUND_WAKE_LIMIT: () => new AppError('INBOUND_WAKE_LIMIT', 'Agent inbound wake limit reached', 429),
 
+  // Trust
+  INSUFFICIENT_TRUST: () => new AppError('INSUFFICIENT_TRUST', 'Insufficient trust level for this action', 403),
+  AGENT_QUARANTINED: () => new AppError('AGENT_QUARANTINED', 'Agent is quarantined', 403),
+  CANNOT_VOUCH_SELF: () => new AppError('CANNOT_VOUCH_SELF', 'Cannot vouch for yourself', 400),
+  VOUCH_EXISTS: () => new AppError('VOUCH_EXISTS', 'Already vouching for this agent', 409),
+  ALREADY_FLAGGED: () => new AppError('ALREADY_FLAGGED', 'Already flagged this agent recently', 409),
+
   // General
   FORBIDDEN: () => new AppError('FORBIDDEN', 'Forbidden', 403),
   NOT_FOUND: () => new AppError('NOT_FOUND', 'Not found', 404),

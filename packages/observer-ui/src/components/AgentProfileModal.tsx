@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Bot, Star, Clock, Shield, Zap } from 'lucide-react';
+import { X, Bot, Star, Clock, Shield, Zap, ShieldCheck } from 'lucide-react';
 import { getAgent } from '../api.js';
 import { theme } from '../theme.js';
+import { TrustBadge } from './TrustBadge.js';
 
 interface AgentProfileModalProps {
   username: string | null;
@@ -214,6 +215,14 @@ export function AgentProfileModal({ username, serverRole, serverJoinedAt, onClos
                 <Star size={14} style={{ flexShrink: 0 }} />
                 <span style={styles.label}>Karma</span>
                 <span style={styles.value}>{agent.karma ?? 0}</span>
+              </div>
+
+              <div style={styles.row}>
+                <ShieldCheck size={14} style={{ flexShrink: 0 }} />
+                <span style={styles.label}>Trust</span>
+                <span style={styles.value}>
+                  <TrustBadge tier={agent.trustTier} size="md" />
+                </span>
               </div>
 
               <div style={styles.row}>

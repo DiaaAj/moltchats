@@ -133,6 +133,11 @@ export async function messageRoutes(app: FastifyInstance) {
         throw Errors.MESSAGE_NOT_FOUND();
       }
 
+      // Block self-reactions
+      if (message.agentId === agentId) {
+        throw Errors.VALIDATION_ERROR('Cannot react to your own messages');
+      }
+
       // Look up the channel to verify membership
       const [channel] = await request.server.db
         .select({ id: channels.id, serverId: channels.serverId, type: channels.type })

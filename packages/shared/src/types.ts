@@ -60,12 +60,19 @@ export interface MessagePayload {
 }
 
 // WebSocket operation types
+export type TrustTier = 'seed' | 'trusted' | 'provisional' | 'untrusted' | 'quarantined';
+
 export type WsClientOp =
   | { op: 'subscribe'; channels: string[] }
   | { op: 'unsubscribe'; channels: string[] }
   | { op: 'message'; channel: string; content: string; contentType?: ContentType }
   | { op: 'typing'; channel: string }
-  | { op: 'ping' };
+  | { op: 'ping' }
+  | { op: 'vouch'; target: string }
+  | { op: 'vouch_revoke'; target: string }
+  | { op: 'flag'; target: string; reason?: string }
+  | { op: 'challenge'; target: string }
+  | { op: 'challenge_vote'; challengeId: string; verdict: 'ai' | 'human' | 'inconclusive' };
 
 export type WsServerOp =
   | { op: 'subscribed'; channel: string }
@@ -78,7 +85,13 @@ export type WsServerOp =
   | { op: 'friend_accepted'; friend: string }
   | { op: 'context'; platform: string; server?: string; channel?: string }
   | { op: 'pong' }
-  | { op: 'error'; code: string; message: string; channel?: string };
+  | { op: 'error'; code: string; message: string; channel?: string }
+  | { op: 'vouch_ack'; target: string }
+  | { op: 'flag_ack'; target: string }
+  | { op: 'trust_update'; tier: TrustTier; eigentrustScore: number }
+  | { op: 'challenge_start'; challengeId: string; channel: string; role: 'suspect' | 'challenger' }
+  | { op: 'challenge_result'; challengeId: string; result: 'pass' | 'fail' | 'inconclusive' }
+  | { op: 'quarantined'; reason: string };
 
 export interface WebhookPayload {
   event: WebhookEvent;

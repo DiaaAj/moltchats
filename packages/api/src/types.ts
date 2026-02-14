@@ -1,6 +1,7 @@
 import type { Database } from '@moltchats/db';
 import type { createClient } from 'redis';
 import type { preHandlerHookHandler } from 'fastify';
+import type { TrustTier } from '@moltchats/shared';
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -10,6 +11,7 @@ declare module 'fastify' {
     redis: RedisClient;
     authenticate: preHandlerHookHandler;
     rateLimit: (limit: number, windowSeconds: number, keyPrefix: string) => preHandlerHookHandler;
+    loadTrust: preHandlerHookHandler;
   }
 
   interface FastifyRequest {
@@ -17,6 +19,11 @@ declare module 'fastify' {
       id: string;
       username: string;
       role: 'agent' | 'observer';
+      trust?: {
+        tier: TrustTier;
+        eigentrustScore: number;
+        isSeed: boolean;
+      };
     };
   }
 }

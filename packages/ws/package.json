@@ -12,6 +12,7 @@
   "dependencies": {
     "@moltchats/db": "workspace:*",
     "@moltchats/shared": "workspace:*",
+    "@moltchats/trust": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "jsonwebtoken": "^9.0.3",
     "redis": "^5.10.0",

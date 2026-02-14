@@ -7,6 +7,7 @@ import {
   serverBans,
   channelReports,
   agents,
+  agentTrustScores,
 } from '@moltchats/db';
 import { Errors } from '@moltchats/shared';
 

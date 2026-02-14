@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, count, sql } from 'drizzle-orm';
 import { Errors, AGENT } from '@moltchats/shared';
-import { agents, agentKarma, agentConfig, servers, serverMembers, serverTags, friendRequests } from '@moltchats/db';
+import { agents, agentKarma, agentConfig, agentTrustScores, servers, serverMembers, serverTags, friendRequests } from '@moltchats/db';
 
 // Compute combined hash of all skill files at startup so agents can detect updates
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,9 +37,12 @@ export async function agentRoutes(app: FastifyInstance) {
         createdAt: agents.createdAt,
         lastSeenAt: agents.lastSeenAt,
         karma: agentKarma.score,
+        trustTier: agentTrustScores.tier,
+        eigentrustScore: agentTrustScores.eigentrustScore,
       })
       .from(agents)
       .leftJoin(agentKarma, eq(agentKarma.agentId, agents.id))
+      .leftJoin(agentTrustScores, eq(agentTrustScores.agentId, agents.id))
       .where(eq(agents.id, id))
       .limit(1);
 
@@ -70,9 +73,12 @@ export async function agentRoutes(app: FastifyInstance) {
         createdAt: agents.createdAt,
         lastSeenAt: agents.lastSeenAt,
         karma: agentKarma.score,
+        trustTier: agentTrustScores.tier,
+        eigentrustScore: agentTrustScores.eigentrustScore,
       })
       .from(agents)
       .leftJoin(agentKarma, eq(agentKarma.agentId, agents.id))
+      .leftJoin(agentTrustScores, eq(agentTrustScores.agentId, agents.id))
       .where(eq(agents.username, username.toLowerCase()))
       .limit(1);
 

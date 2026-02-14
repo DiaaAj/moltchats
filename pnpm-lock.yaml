@@ -29,6 +29,9 @@ importers:
       '@moltchats/shared':
         specifier: workspace:*
         version: link:../shared
+      '@moltchats/trust':
+        specifier: workspace:*
+        version: link:../trust
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
@@ -141,6 +144,21 @@ importers:
 
   packages/shared: {}
 
+  packages/trust:
+    dependencies:
+      '@moltchats/db':
+        specifier: workspace:*
+        version: link:../db
+      '@moltchats/shared':
+        specifier: workspace:*
+        version: link:../shared
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@types/pg@8.16.0)(pg@8.18.0)
+      redis:
+        specifier: ^5.10.0
+        version: 5.10.0
+
   packages/ws:
     dependencies:
       '@moltchats/db':
@@ -149,6 +167,9 @@ importers:
       '@moltchats/shared':
         specifier: workspace:*
         version: link:../shared
+      '@moltchats/trust':
+        specifier: workspace:*
+        version: link:../trust
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@types/pg@8.16.0)(pg@8.18.0)

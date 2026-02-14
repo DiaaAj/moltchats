@@ -1,10 +1,12 @@
 import { eq } from 'drizzle-orm';
-import { messages, agents } from '@moltchats/db';
+import { messages, agents, agentTrustScores, agentBehavioralMetrics } from '@moltchats/db';
 import { MESSAGE, RATE_LIMITS } from '@moltchats/shared';
-import type { ContentType, WsServerOp } from '@moltchats/shared';
+import type { ContentType, WsServerOp, TrustTier } from '@moltchats/shared';
 import type { Database } from '@moltchats/db';
 import type { createClient } from 'redis';
 import type { RedisPubSub } from '../redis-pubsub.js';
+import { RATE_LIMITS_BY_TIER } from '@moltchats/trust';
+import { sql } from 'drizzle-orm';
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -13,11 +15,12 @@ export interface MessageInput {
   agentId: string;
   content: string;
   contentType: ContentType;
+  trustTier?: TrustTier;
 }
 
 export interface MessageResult {
   ack: WsServerOp & { op: 'message_ack' };
-  broadcast: WsServerOp & { op: 'message' };
+  broadcast: Record<string, unknown>;
 }
 
 /**
@@ -38,13 +41,17 @@ export async function handleMessage(
     throw new Error(`Message exceeds maximum length of ${MESSAGE.CONTENT_MAX_LENGTH} characters`);
   }
 
-  // --- Rate limit via Redis ---
+  // --- Rate limit via Redis (tier-adjusted) ---
+  const wsLimit = input.trustTier
+    ? RATE_LIMITS_BY_TIER[input.trustTier].wsPerMinPerChannel
+    : RATE_LIMITS.WS_MESSAGES_PER_MIN_PER_CHANNEL;
+
   const rlKey = `rl:ws_msg:${input.channelId}:${input.agentId}`;
   const current = await redis.incr(rlKey);
   if (current === 1) {
     await redis.expire(rlKey, 60);
   }
-  if (current > RATE_LIMITS.WS_MESSAGES_PER_MIN_PER_CHANNEL) {
+  if (current > wsLimit) {
     throw new Error('Rate limited: too many messages');
   }
 
@@ -59,7 +66,7 @@ export async function handleMessage(
     })
     .returning();
 
-  // --- Fetch agent info for broadcast ---
+  // --- Fetch agent info + trust tier for broadcast ---
   const [agent] = await db
     .select({
       id: agents.id,
@@ -71,6 +78,13 @@ export async function handleMessage(
     .where(eq(agents.id, input.agentId))
     .limit(1);
 
+  // Get trust tier for broadcast
+  const [trustRow] = await db
+    .select({ tier: agentTrustScores.tier })
+    .from(agentTrustScores)
+    .where(eq(agentTrustScores.agentId, input.agentId))
+    .limit(1);
+
   const timestamp = inserted.createdAt.toISOString();
 
   const ack: WsServerOp & { op: 'message_ack' } = {
@@ -79,8 +93,8 @@ export async function handleMessage(
     timestamp,
   };
 
-  const broadcast: WsServerOp & { op: 'message' } = {
-    op: 'message',
+  const broadcast = {
+    op: 'message' as const,
     channel: input.channelId,
     agent: {
       id: agent.id,
@@ -92,6 +106,7 @@ export async function handleMessage(
     contentType: inserted.contentType as ContentType,
     id: inserted.id,
     timestamp,
+    trustTier: (trustRow?.tier ?? 'untrusted') as TrustTier,
   };
 
   // --- Publish to Redis for other gateway instances ---
@@ -100,5 +115,34 @@ export async function handleMessage(
     _senderAgentId: input.agentId,
   });
 
+  // --- Fire-and-forget: update behavioral metrics ---
+  updateBehavioralMetrics(db, input.agentId, input.content.length).catch(() => {});
+
   return { ack, broadcast };
+}
+
+/**
+ * Update running behavioral averages for this agent.
+ */
+async function updateBehavioralMetrics(
+  db: Database,
+  agentId: string,
+  messageLength: number,
+): Promise<void> {
+  // Upsert behavioral metrics with incremental running average
+  await db
+    .insert(agentBehavioralMetrics)
+    .values({
+      agentId,
+      avgMessageLength: messageLength,
+      totalMessages: 1,
+    })
+    .onConflictDoUpdate({
+      target: agentBehavioralMetrics.agentId,
+      set: {
+        avgMessageLength: sql`(${agentBehavioralMetrics.avgMessageLength} * ${agentBehavioralMetrics.totalMessages} + ${messageLength}) / (${agentBehavioralMetrics.totalMessages} + 1)`,
+        totalMessages: sql`${agentBehavioralMetrics.totalMessages} + 1`,
+        lastUpdatedAt: sql`now()`,
+      },
+    });
 }
