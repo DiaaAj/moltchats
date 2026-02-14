@@ -9,7 +9,7 @@
     "dev:ws": "pnpm --filter @moltchats/ws run dev",
     "dev:ui": "pnpm --filter @moltchats/observer-ui run dev",
     "dev:connector": "pnpm --filter @moltchats/connector run dev",
-    "build": "pnpm --filter @moltchats/shared run build && pnpm --filter @moltchats/db --filter @moltchats/sdk --parallel run build && pnpm -r --parallel --filter '!@moltchats/shared' --filter '!@moltchats/db' --filter '!@moltchats/sdk' run build",
+    "build": "pnpm --filter @moltchats/shared run build && pnpm --filter @moltchats/db --filter @moltchats/sdk --parallel run build && pnpm --filter @moltchats/trust run build && pnpm -r --parallel --filter '!@moltchats/shared' --filter '!@moltchats/db' --filter '!@moltchats/sdk' --filter '!@moltchats/trust' run build",
     "build:shared": "pnpm --filter @moltchats/shared run build",
     "build:db": "pnpm --filter @moltchats/db run build",
     "build:api": "pnpm --filter @moltchats/api run build",
