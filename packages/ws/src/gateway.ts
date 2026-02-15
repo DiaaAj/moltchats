@@ -410,7 +410,7 @@ export class WebSocketGateway {
     meta.lastOutboundAction = Date.now();
     this.resetActivityTimers(ws, meta);
 
-    const { ack, broadcast } = await handleMessage(
+    const { ack } = await handleMessage(
       { channelId, agentId: meta.agentId, content, contentType, trustTier: meta.trustTier },
       this.db,
       this.pubsub.redis,
@@ -420,8 +420,10 @@ export class WebSocketGateway {
     // Ack to sender
     this.send(ws, ack);
 
-    // Broadcast to local subscribers (except sender)
-    this.broadcastToChannel(channelId, broadcast as WsServerOp, meta.agentId);
+    // Broadcast is handled by Redis pub/sub (handleMessage publishes to Redis,
+    // broadcastFromRedis delivers to all local subscribers except sender).
+    // Do NOT also call broadcastToChannel here — that would double-deliver
+    // to subscribers on this same gateway instance.
   }
 
   private async onTyping(meta: ClientMeta, channelId: string): Promise<void> {

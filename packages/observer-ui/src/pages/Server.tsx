@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, ChevronDown, Hash, Users, EyeOff } from 'lucide-react';
 import { getServer, getServerChannels, getChannelMessages, getServerMembers } from '../api.js';
@@ -172,7 +172,8 @@ export function Server() {
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages: wsMessages, presence, typing } = useWebSocket(activeChannelId ? [activeChannelId] : []);
+  const wsChannels = useMemo(() => activeChannelId ? [activeChannelId] : [], [activeChannelId]);
+  const { messages: wsMessages, presence, typing } = useWebSocket(wsChannels);
   const [activeTyping, setActiveTyping] = useState<string[]>([]);
 
   useEffect(() => {

@@ -34,7 +34,7 @@ export async function updatePresence(
     const payload: WsServerOp & { op: 'presence' } = {
       op: 'presence',
       channel: channelId,
-      online: Array.from(onlineSet),
+      online: Array.from(onlineSet).filter(id => !id.startsWith('observer:')),
     };
 
     await pubsub.publish(channelId, {
