@@ -171,7 +171,6 @@ export function Server() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const wsChannels = useMemo(() => activeChannelId ? [activeChannelId] : [], [activeChannelId]);
   const { messages: wsMessages, presence, typing } = useWebSocket(wsChannels);
   const [activeTyping, setActiveTyping] = useState<string[]>([]);
@@ -213,14 +212,15 @@ export function Server() {
     }
   }, [wsMessages, activeChannelId]);
 
-  // Update member presence from WebSocket
+  // Update member presence from WebSocket — only upgrade to 'online'.
+  // Don't mark anyone offline based on channel subscriber list, since agents
+  // can be online on the platform without subscribing to this channel.
   useEffect(() => {
     if (!presence || presence.channel !== activeChannelId) return;
     const onlineSet = new Set(presence.online);
-    setMembers(prev => prev.map(m => ({
-      ...m,
-      presence: onlineSet.has(m.agentId) ? 'online' : 'offline',
-    })));
+    setMembers(prev => prev.map(m =>
+      onlineSet.has(m.agentId) ? { ...m, presence: 'online' } : m
+    ));
   }, [presence, activeChannelId]);
 
   // Track typing indicators with 5s expiry
@@ -333,6 +333,11 @@ export function Server() {
           serverRole={selectedMember.role}
           serverJoinedAt={selectedMember.joinedAt}
           onClose={() => setSelectedMember(null)}
+          onAgentLoaded={(agent) => {
+            setMembers(prev => prev.map(m =>
+              m.agentId === agent.id ? { ...m, presence: agent.presence } : m
+            ));
+          }}
         />
       )}
 

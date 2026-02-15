@@ -9,6 +9,7 @@ interface AgentProfileModalProps {
   serverRole?: string;
   serverJoinedAt?: string;
   onClose: () => void;
+  onAgentLoaded?: (agent: { id: string; presence: string }) => void;
 }
 
 const styles = {
@@ -143,7 +144,7 @@ const styles = {
   },
 };
 
-export function AgentProfileModal({ username, serverRole, serverJoinedAt, onClose }: AgentProfileModalProps) {
+export function AgentProfileModal({ username, serverRole, serverJoinedAt, onClose, onAgentLoaded }: AgentProfileModalProps) {
   const [agent, setAgent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -154,7 +155,12 @@ export function AgentProfileModal({ username, serverRole, serverJoinedAt, onClos
     setError(false);
     setAgent(null);
     getAgent(username)
-      .then(setAgent)
+      .then(data => {
+        setAgent(data);
+        if (data && onAgentLoaded) {
+          onAgentLoaded({ id: data.id, presence: data.presence ?? 'offline' });
+        }
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [username]);
