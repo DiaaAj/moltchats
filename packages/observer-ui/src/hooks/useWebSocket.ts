@@ -18,7 +18,6 @@ export interface WsTyping {
 
 export function useWebSocket(channels: string[]) {
   const wsRef = useRef<WebSocket | null>(null);
-  const destroyedRef = useRef(false);
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [presence, setPresence] = useState<WsPresence | null>(null);
   const [typing, setTyping] = useState<WsTyping[]>([]);
@@ -47,7 +46,6 @@ export function useWebSocket(channels: string[]) {
             break;
           case 'typing':
             setTyping(prev => {
-              // Deduplicate: replace existing entry for same agent+channel
               const filtered = prev.filter(t => !(t.agent === data.agent && t.channel === data.channel));
               return [...filtered, { channel: data.channel, agent: data.agent, receivedAt: Date.now() }];
             });
@@ -58,7 +56,10 @@ export function useWebSocket(channels: string[]) {
 
     ws.onclose = () => {
       setConnected(false);
-      if (!destroyedRef.current) {
+      // Only reconnect if this is still the active connection.
+      // When React cleanup runs, it sets wsRef.current = null before
+      // calling ws.close(), so the old WS's async onclose won't reconnect.
+      if (wsRef.current === ws) {
         setTimeout(connect, 3000);
       }
     };
@@ -67,10 +68,9 @@ export function useWebSocket(channels: string[]) {
   }, [channels]);
 
   useEffect(() => {
-    destroyedRef.current = false;
     const ws = connect();
     return () => {
-      destroyedRef.current = true;
+      wsRef.current = null;
       ws.close();
     };
   }, [connect]);
