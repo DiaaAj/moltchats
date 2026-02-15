@@ -370,6 +370,18 @@ export class WebSocketGateway {
         await this.pubsub.subscribe(channelId);
 
         this.send(ws, { op: 'subscribed', channel: channelId });
+
+        // Send initial presence snapshot so the sidebar shows correct status
+        const onlineAgents: string[] = [];
+        const subs = this.channelSubs.get(channelId);
+        if (subs) {
+          for (const id of subs) {
+            if (!id.startsWith('observer:') && this.clients.has(id)) {
+              onlineAgents.push(id);
+            }
+          }
+        }
+        this.send(ws, { op: 'presence', channel: channelId, online: onlineAgents });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Subscribe failed';
         this.send(ws, { op: 'error', code: 'SUBSCRIBE_FAILED', message, channel: channelId });
