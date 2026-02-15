@@ -7,11 +7,180 @@ import {
   serverMembers,
   messageReactions,
   agentKarma,
+  agentTrustScores,
+  agentBehavioralMetrics,
   friendships,
 } from '@moltchats/db';
-import { Errors, MESSAGE } from '@moltchats/shared';
+import { Errors, MESSAGE, RATE_LIMITS } from '@moltchats/shared';
+import type { ContentType, TrustTier } from '@moltchats/shared';
 
 export async function messageRoutes(app: FastifyInstance) {
+  // ── POST /channels/:channelId/messages ────────────────────────────
+  app.post(
+    '/channels/:channelId/messages',
+    { preHandler: [app.authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { channelId } = request.params as { channelId: string };
+      const agentId = request.agent!.id;
+      const { content, contentType: rawContentType } = request.body as {
+        content: string;
+        contentType?: string;
+      };
+
+      const contentType = (rawContentType ?? 'text') as ContentType;
+
+      // Validate content
+      if (!content || content.length === 0) {
+        throw Errors.VALIDATION_ERROR('Message content cannot be empty');
+      }
+      if (content.length > MESSAGE.CONTENT_MAX_LENGTH) {
+        throw Errors.VALIDATION_ERROR(`Message exceeds maximum length of ${MESSAGE.CONTENT_MAX_LENGTH} characters`);
+      }
+
+      // Look up the channel
+      const [channel] = await request.server.db
+        .select({ id: channels.id, serverId: channels.serverId, type: channels.type })
+        .from(channels)
+        .where(eq(channels.id, channelId))
+        .limit(1);
+
+      if (!channel) {
+        throw Errors.CHANNEL_NOT_FOUND();
+      }
+
+      // Verify membership
+      if (channel.type === 'dm') {
+        const [friendship] = await request.server.db
+          .select({ agentAId: friendships.agentAId })
+          .from(friendships)
+          .where(
+            and(
+              eq(friendships.dmChannelId, channelId),
+              sql`(${friendships.agentAId} = ${agentId} OR ${friendships.agentBId} = ${agentId})`,
+            ),
+          )
+          .limit(1);
+
+        if (!friendship) {
+          throw Errors.NOT_DM_PARTICIPANT();
+        }
+      } else {
+        if (!channel.serverId) {
+          throw Errors.CHANNEL_NOT_FOUND();
+        }
+
+        const [member] = await request.server.db
+          .select({ agentId: serverMembers.agentId })
+          .from(serverMembers)
+          .where(
+            and(
+              eq(serverMembers.serverId, channel.serverId),
+              eq(serverMembers.agentId, agentId),
+            ),
+          )
+          .limit(1);
+
+        if (!member) {
+          throw Errors.NOT_SERVER_MEMBER();
+        }
+      }
+
+      // Rate limit
+      const rlKey = `rl:rest_msg:${channelId}:${agentId}`;
+      const current = await request.server.redis.incr(rlKey);
+      if (current === 1) {
+        await request.server.redis.expire(rlKey, 60);
+      }
+      if (current > RATE_LIMITS.WS_MESSAGES_PER_MIN_PER_CHANNEL) {
+        throw Errors.RATE_LIMITED();
+      }
+
+      // Insert message
+      const [inserted] = await request.server.db
+        .insert(messages)
+        .values({
+          channelId,
+          agentId,
+          content,
+          contentType,
+        })
+        .returning();
+
+      // Fetch agent info for broadcast
+      const [agent] = await request.server.db
+        .select({
+          id: agents.id,
+          username: agents.username,
+          displayName: agents.displayName,
+          avatarUrl: agents.avatarUrl,
+        })
+        .from(agents)
+        .where(eq(agents.id, agentId))
+        .limit(1);
+
+      // Get trust tier for broadcast
+      const [trustRow] = await request.server.db
+        .select({ tier: agentTrustScores.tier })
+        .from(agentTrustScores)
+        .where(eq(agentTrustScores.agentId, agentId))
+        .limit(1);
+
+      const timestamp = inserted.createdAt.toISOString();
+
+      // Publish to Redis so WebSocket subscribers see it in real-time
+      await request.server.redis.publish(
+        `ch:${channelId}`,
+        JSON.stringify({
+          op: 'message',
+          channel: channelId,
+          agent: {
+            id: agent.id,
+            username: agent.username,
+            displayName: agent.displayName,
+            avatarUrl: agent.avatarUrl,
+          },
+          content: inserted.content,
+          contentType: inserted.contentType,
+          id: inserted.id,
+          timestamp,
+          trustTier: (trustRow?.tier ?? 'untrusted') as TrustTier,
+        }),
+      );
+
+      // Fire-and-forget: update behavioral metrics
+      request.server.db
+        .insert(agentBehavioralMetrics)
+        .values({
+          agentId,
+          avgMessageLength: content.length,
+          totalMessages: 1,
+        })
+        .onConflictDoUpdate({
+          target: agentBehavioralMetrics.agentId,
+          set: {
+            avgMessageLength: sql`(${agentBehavioralMetrics.avgMessageLength} * ${agentBehavioralMetrics.totalMessages} + ${content.length}) / (${agentBehavioralMetrics.totalMessages} + 1)`,
+            totalMessages: sql`${agentBehavioralMetrics.totalMessages} + 1`,
+            lastUpdatedAt: sql`now()`,
+          },
+        })
+        .catch(() => {});
+
+      return reply.status(201).send({
+        id: inserted.id,
+        channelId,
+        content: inserted.content,
+        contentType: inserted.contentType,
+        createdAt: timestamp,
+        agent: {
+          id: agent.id,
+          username: agent.username,
+          displayName: agent.displayName,
+          avatarUrl: agent.avatarUrl,
+        },
+      });
+    },
+  );
+
   // ── GET /channels/:channelId/messages ─────────────────────────────
   app.get(
     '/channels/:channelId/messages',
