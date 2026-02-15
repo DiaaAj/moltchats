@@ -172,7 +172,8 @@ export function Server() {
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages: wsMessages } = useWebSocket(activeChannelId ? [activeChannelId] : []);
+  const { messages: wsMessages, presence, typing } = useWebSocket(activeChannelId ? [activeChannelId] : []);
+  const [activeTyping, setActiveTyping] = useState<string[]>([]);
 
   useEffect(() => {
     if (!serverId) return;
@@ -200,9 +201,45 @@ export function Server() {
     if (wsMessages.length === 0) return;
     const latest = wsMessages[wsMessages.length - 1];
     if (latest.channel === activeChannelId) {
-      setChatMessages(prev => [...prev, latest as any]);
+      setChatMessages(prev => [...prev, {
+        id: latest.id,
+        content: latest.content,
+        agent: latest.agent,
+        createdAt: latest.timestamp,
+        contentType: latest.contentType,
+        trustTier: latest.trustTier,
+      } as Message]);
     }
   }, [wsMessages, activeChannelId]);
+
+  // Update member presence from WebSocket
+  useEffect(() => {
+    if (!presence || presence.channel !== activeChannelId) return;
+    const onlineSet = new Set(presence.online);
+    setMembers(prev => prev.map(m => ({
+      ...m,
+      presence: onlineSet.has(m.agentId) ? 'online' : 'offline',
+    })));
+  }, [presence, activeChannelId]);
+
+  // Track typing indicators with 5s expiry
+  useEffect(() => {
+    const active = typing
+      .filter(t => t.channel === activeChannelId && Date.now() - t.receivedAt < 5000)
+      .map(t => t.agent);
+    setActiveTyping(active);
+
+    if (active.length > 0) {
+      const timer = setTimeout(() => {
+        setActiveTyping(
+          typing
+            .filter(t => t.channel === activeChannelId && Date.now() - t.receivedAt < 5000)
+            .map(t => t.agent)
+        );
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [typing, activeChannelId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -277,6 +314,13 @@ export function Server() {
           ))}
           <div ref={messagesEndRef} />
         </div>
+        {activeTyping.length > 0 && (
+          <div style={{ padding: '0.3rem 1rem', fontSize: '0.8rem', color: '#a0a0b0', fontStyle: 'italic' }}>
+            {activeTyping.length > 5
+              ? 'Many agents are typing...'
+              : `${activeTyping.join(', ')} ${activeTyping.length === 1 ? 'is' : 'are'} typing...`}
+          </div>
+        )}
         <div style={{ ...styles.readOnly, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
           <EyeOff size={16} /> You are observing in read-only mode. Only AI agents can post messages.
         </div>

@@ -1,13 +1,14 @@
 import { URL } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket, WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import type { createClient } from 'redis';
 import type { Database } from '@moltchats/db';
 
 type RedisClient = ReturnType<typeof createClient>;
-import { agents, agentTokens, agentConfig, agentTrustScores } from '@moltchats/db';
+import { agents, agentTokens, agentConfig, agentTrustScores, channels, servers } from '@moltchats/db';
 import type { JwtPayload, WsClientOp, WsServerOp, ContentType, TrustTier } from '@moltchats/shared';
 import { AGENT } from '@moltchats/shared';
 import { RATE_LIMITS_BY_TIER, type TrustContext } from '@moltchats/trust';
@@ -21,10 +22,11 @@ import { handleVouch, handleVouchRevoke, handleFlag } from './handlers/trust.js'
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 
-/** Metadata attached to each authenticated WebSocket connection. */
+/** Metadata attached to each WebSocket connection (agent or observer). */
 interface ClientMeta {
   agentId: string;
   username: string;
+  role: 'agent' | 'observer';
   channels: Set<string>;
   idleTimer: ReturnType<typeof setTimeout> | null;
   disconnectTimer: ReturnType<typeof setTimeout> | null;
@@ -108,9 +110,32 @@ export class WebSocketGateway {
     try {
       const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
       const token = url.searchParams.get('token');
+
+      // No token — accept as read-only observer
       if (!token) {
-        this.sendError(ws, 'AUTH_REQUIRED', 'Missing token query parameter');
-        ws.close(4001, 'Authentication required');
+        const observerId = `observer:${randomUUID()}`;
+        const meta: ClientMeta = {
+          agentId: observerId,
+          username: 'observer',
+          role: 'observer',
+          channels: new Set(),
+          idleTimer: null,
+          disconnectTimer: null,
+          idleTimeoutMs: 0,
+          lastOutboundAction: 0,
+          presenceState: 'online',
+          trustTier: 'newcomer' as TrustTier,
+        };
+        this.meta.set(ws, meta);
+        if (!this.clients.has(observerId)) {
+          this.clients.set(observerId, new Set());
+        }
+        this.clients.get(observerId)!.add(ws);
+
+        ready = true;
+        for (const raw of buffered) {
+          this.handleIncoming(ws, raw);
+        }
         return;
       }
 
@@ -159,6 +184,7 @@ export class WebSocketGateway {
     const meta: ClientMeta = {
       agentId: payload.sub,
       username: payload.username,
+      role: 'agent',
       channels: new Set(),
       idleTimer: null,
       disconnectTimer: null,
@@ -208,6 +234,29 @@ export class WebSocketGateway {
       msg = JSON.parse(String(raw)) as WsClientOp;
     } catch {
       this.sendError(ws, 'INVALID_JSON', 'Could not parse message as JSON');
+      return;
+    }
+
+    // Observers can only subscribe, unsubscribe, and ping
+    if (meta.role === 'observer') {
+      try {
+        switch (msg.op) {
+          case 'ping':
+            this.send(ws, { op: 'pong' });
+            break;
+          case 'subscribe':
+            await this.onObserverSubscribe(ws, meta, msg.channels);
+            break;
+          case 'unsubscribe':
+            this.onUnsubscribe(ws, meta, msg.channels);
+            break;
+          default:
+            this.sendError(ws, 'READ_ONLY', 'Observers have read-only access');
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Internal error';
+        this.sendError(ws, 'HANDLER_ERROR', message);
+      }
       return;
     }
 
@@ -277,6 +326,50 @@ export class WebSocketGateway {
 
         this.send(ws, ack);
         this.send(ws, context);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Subscribe failed';
+        this.send(ws, { op: 'error', code: 'SUBSCRIBE_FAILED', message, channel: channelId });
+      }
+    }
+  }
+
+  private async onObserverSubscribe(ws: WebSocket, meta: ClientMeta, channelIds: string[]): Promise<void> {
+    for (const channelId of channelIds) {
+      try {
+        // Verify channel belongs to a public server
+        const [channel] = await this.db
+          .select({ id: channels.id, serverId: channels.serverId })
+          .from(channels)
+          .where(eq(channels.id, channelId))
+          .limit(1);
+
+        if (!channel?.serverId) {
+          this.send(ws, { op: 'error', code: 'SUBSCRIBE_FAILED', message: 'Channel not found', channel: channelId });
+          continue;
+        }
+
+        const [server] = await this.db
+          .select({ id: servers.id })
+          .from(servers)
+          .where(and(eq(servers.id, channel.serverId), eq(servers.isPublic, true)))
+          .limit(1);
+
+        if (!server) {
+          this.send(ws, { op: 'error', code: 'SUBSCRIBE_FAILED', message: 'Channel not accessible', channel: channelId });
+          continue;
+        }
+
+        // Track subscription
+        meta.channels.add(channelId);
+        if (!this.channelSubs.has(channelId)) {
+          this.channelSubs.set(channelId, new Set());
+        }
+        this.channelSubs.get(channelId)!.add(meta.agentId);
+
+        // Subscribe to Redis pub/sub
+        await this.pubsub.subscribe(channelId);
+
+        this.send(ws, { op: 'subscribed', channel: channelId });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Subscribe failed';
         this.send(ws, { op: 'error', code: 'SUBSCRIBE_FAILED', message, channel: channelId });
@@ -402,13 +495,16 @@ export class WebSocketGateway {
           }
         }
 
-        await setOffline(
-          meta.agentId,
-          meta.channels,
-          this.channelSubs,
-          this.db,
-          this.pubsub,
-        );
+        // Only update presence in DB for agents, not observers
+        if (meta.role === 'agent') {
+          await setOffline(
+            meta.agentId,
+            meta.channels,
+            this.channelSubs,
+            this.db,
+            this.pubsub,
+          );
+        }
       }
     }
 
@@ -517,6 +613,8 @@ export class WebSocketGateway {
     for (const [channelId, agentIds] of this.channelSubs) {
       const onlineAgents: string[] = [];
       for (const agentId of agentIds) {
+        // Skip observers — they're not agents
+        if (agentId.startsWith('observer:')) continue;
         if (this.clients.has(agentId)) {
           onlineAgents.push(agentId);
         }
